@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>KLD Diagram with Curved Image Warp (Canvas Version)</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div class="controls">
+      <label
+        >Select shape
+        <select id="diagramType" onchange="updateInputs()">
+          <option value="curveRectangle">Curve Rectangle</option>
+          <option value="squareWithRadius">Square with Radius</option>
+          <option value="square">Square</option>
+        </select>
+      </label>
+
+      <label
+        >Units
+        <select id="units" onchange="drawKLD()">
+          <option value="px">Pixels (px)</option>
+          <option value="mm" selected>Millimeters (mm)</option>
+          <option value="m">Meters (m)</option>
+        </select>
+      </label>
+
+      <div id="curveRectInputs" class="input-group active">
+        <label
+          >Top Width:
+          <input
+            id="topWidth"
+            type="number"
+            value="313.14"
+            step="0.1"
+            oninput="drawKLD()"
+          />
+        </label>
+        <label
+          >Bottom Width:
+          <input
+            id="bottomWidth"
+            type="number"
+            value="244.65"
+            step="0.1"
+            oninput="drawKLD()"
+          />
+        </label>
+        <label
+          >Height:
+          <input
+            id="height"
+            type="number"
+            value="75"
+            step="0.1"
+            oninput="drawKLD()"
+          />
+        </label>
+      </div>
+
+      <div id="squareRadiusInputs" class="input-group">
+        <label
+          >Width:
+          <input
+            id="sqWidth"
+            type="number"
+            value="200"
+            step="0.1"
+            oninput="drawKLD()"
+          />
+        </label>
+        <label
+          >Height:
+          <input
+            id="sqHeight"
+            type="number"
+            value="150"
+            step="0.1"
+            oninput="drawKLD()"
+          />
+        </label>
+        <label
+          >Radius:
+          <input
+            id="radius"
+            type="number"
+            value="25"
+            step="0.1"
+            oninput="drawKLD()"
+          />
+        </label>
+      </div>
+
+      <div id="squareInputs" class="input-group">
+        <label
+          >Width:
+          <input
+            id="sqWidthOnly"
+            type="number"
+            value="200"
+            step="0.1"
+            oninput="drawKLD()"
+          />
+        </label>
+        <label
+          >Height:
+          <input
+            id="sqHeightOnly"
+            type="number"
+            value="150"
+            step="0.1"
+            oninput="drawKLD()"
+          />
+        </label>
+      </div>
+
+      <label
+        >Upload Image:
+        <input type="file" id="imageUpload" accept="image/*" />
+      </label>
+
+      <button class="export" id="export">Export</button>
+    </div>
+
+    <div class="box_container">
+      <canvas id="kldCanvas"></canvas>
+    </div>
+    <script src="index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  </body>
+</html>
