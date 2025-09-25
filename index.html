@@ -10,9 +10,12 @@
       <label
         >Select shape
         <select id="diagramType" onchange="updateInputs()">
-          <option value="curveRectangle">Curve Rectangle</option>
+          <option value="curveRectangle500">500ml Round TUB</option>
+          <option value="curveRectangle250">250ml Round TUB</option>
+          <option value="curveRectangle">Custom Curved</option>
           <option value="squareWithRadius">Square with Radius</option>
           <option value="square">Square</option>
+          <option value="sweetBox">Sweet Box Shape</option>
         </select>
       </label>
 
@@ -111,6 +114,18 @@
             step="0.1"
             oninput="drawKLD()"
           />
+        </label>
+      </div>
+
+      <div id="sweetBoxInputs" class="input-group">
+        <label>Width
+          <input id="sweetWidth" type="number" value="300" step="0.1" oninput="drawKLD()" />
+        </label>
+        <label>Shape Height
+          <input id="sweetHeight" type="number" value="60" step="0.1" oninput="drawKLD()" />
+        </label>
+        <label>Bend Height
+          <input id="sweetBend" type="number" value="30" step="0.1" oninput="drawKLD()" />
         </label>
       </div>
 

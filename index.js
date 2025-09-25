@@ -1,5 +1,44 @@
 let currentImage = null;
 
+function saveStateToLocalStorage() {
+  const state = {
+    diagramType: document.getElementById("diagramType").value,
+    units: document.getElementById("units").value,
+    topWidth: document.getElementById("topWidth").value,
+    bottomWidth: document.getElementById("bottomWidth").value,
+    height: document.getElementById("height").value,
+    sqWidth: document.getElementById("sqWidth").value,
+    sqHeight: document.getElementById("sqHeight").value,
+    radius: document.getElementById("radius").value,
+    sqWidthOnly: document.getElementById("sqWidthOnly").value,
+    sqHeightOnly: document.getElementById("sqHeightOnly").value,
+  };
+
+  localStorage.setItem("kldState", JSON.stringify(state));
+}
+
+function loadStateFromLocalStorage() {
+  const saved = localStorage.getItem("kldState");
+  if (!saved) return;
+
+  const state = JSON.parse(saved);
+
+  document.getElementById("diagramType").value = state.diagramType || "curveRectangle";
+  document.getElementById("units").value = state.units || "px";
+
+  document.getElementById("topWidth").value = state.topWidth || "";
+  document.getElementById("bottomWidth").value = state.bottomWidth || "";
+  document.getElementById("height").value = state.height || "";
+
+  document.getElementById("sqWidth").value = state.sqWidth || "";
+  document.getElementById("sqHeight").value = state.sqHeight || "";
+  document.getElementById("radius").value = state.radius || "";
+
+  document.getElementById("sqWidthOnly").value = state.sqWidthOnly || "";
+  document.getElementById("sqHeightOnly").value = state.sqHeightOnly || "";
+}
+
+
 const canvas = document.getElementById("kldCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -19,8 +58,16 @@ window.addEventListener("resize", () => {
 document
   .getElementById("imageUpload")
   .addEventListener("change", handleImageUpload);
-document.getElementById("diagramType").addEventListener("change", updateInputs);
-document.getElementById("units").addEventListener("change", drawKLD);
+document.getElementById("diagramType").addEventListener("change", () => {
+  updateInputs();
+  saveStateToLocalStorage();
+});
+
+document.getElementById("units").addEventListener("change", () => {
+  drawKLD();
+  saveStateToLocalStorage();
+});
+
 [
   "topWidth",
   "bottomWidth",
@@ -32,8 +79,14 @@ document.getElementById("units").addEventListener("change", drawKLD);
   "sqHeightOnly",
 ].forEach((id) => {
   const el = document.getElementById(id);
-  if (el) el.addEventListener("input", drawKLD);
+  if (el) {
+    el.addEventListener("input", () => {
+      drawKLD();
+      saveStateToLocalStorage();
+    });
+  }
 });
+
 
 function handleImageUpload(event) {
   const file = event.target.files[0];
@@ -59,12 +112,30 @@ function updateInputs() {
   document
     .getElementById("curveRectInputs")
     .classList.toggle("active", diagramType === "curveRectangle");
+  document.getElementById("curveRectInputs").classList.toggle(
+    "active",
+    diagramType === "curveRectangle500" ||
+      diagramType === "curveRectangle250" ||
+      diagramType === "curveRectangle"
+  );
   document
     .getElementById("squareRadiusInputs")
     .classList.toggle("active", diagramType === "squareWithRadius");
   document
     .getElementById("squareInputs")
     .classList.toggle("active", diagramType === "square");
+  document.getElementById('sweetBoxInputs').classList.toggle('active', diagramType === 'sweetBox');
+
+  if (diagramType === "curveRectangle500") {
+    document.getElementById("topWidth").value = 313.14;
+    document.getElementById("bottomWidth").value = 244.65;
+    document.getElementById("height").value = 75;
+  } else if (diagramType === "curveRectangle250") {
+    document.getElementById("topWidth").value = 295.91;
+    document.getElementById("bottomWidth").value = 245.14;
+    document.getElementById("height").value = 37.92;
+  }
+
   drawKLD();
 }
 
@@ -102,7 +173,10 @@ function drawKLD() {
 
   const offset = 30; // 30px outside margin for all dimension lines
 
-  if (diagramType === "curveRectangle") {
+  
+  if (diagramType === "curveRectangle500" ||
+  diagramType === "curveRectangle250" ||
+  diagramType === "curveRectangle") {
     w = Number(document.getElementById("topWidth").value);
     h = Number(document.getElementById("height").value);
     bottom = Number(document.getElementById("bottomWidth").value);
@@ -126,7 +200,7 @@ function drawKLD() {
 
     // === Top-left of the bounding box for the curve shape, centered on canvas
     const centerX = (svgWidth - scaledMaxWidth) / 2;
-    const centerY = (svgHeight - scaledHeight) / 2 +100; // auto vertical center
+    const centerY = (svgHeight - scaledHeight) / 2 + 100; // auto vertical center
 
     const topLeft = {
       x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2),
@@ -224,7 +298,7 @@ function drawKLD() {
           bottomX2 - bottomX1
         );
         // Average angle used for rotation
-        const angle = (angleTop + angleBottom) / 2
+        const angle = (angleTop + angleBottom) / 2;
 
         // Width and height for drawImage
         const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
@@ -244,7 +318,7 @@ function drawKLD() {
           imgHeight,
           0,
           0,
-          sliceWidth + 0.5,
+          sliceWidth + 0.6,
           sliceHeight
         );
         ctx.restore();
@@ -635,22 +709,381 @@ function drawArrow(ctx, fromX, fromY, toX, toY, size = 10) {
   ctx.fill();
 }
 
-window.onload = () => {
-  resizeCanvas();
-  updateInputs();
-};
+const DPI = 300; // 300 dots per inch for high-quality export
 
+function unitToPixelsForExport(value, unit) {
+  if (!value) return 0;
+  switch (unit) {
+    case "mm":
+      return (value / 25.4) * DPI; // convert mm to inches then to pixels
+    case "cm":
+      return ((value * 10) / 25.4) * DPI; // cm to mm to inch to px
+    case "m":
+      return ((value * 1000) / 25.4) * DPI; // meters to mm to inch to px
+    case "px":
+    default:
+      return value; // pixels assumed as-is
+  }
+}
+
+function drawKLDForExport() {
+  if (!ctx) return;
+
+  resizeCanvas();
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const diagramType = document.getElementById("diagramType").value;
+  const units = document.getElementById("units").value;
+
+  function toPx(value) {
+    return value * unitToPx[units];
+  }
+
+  const margin = 60;
+  const svgWidth = canvas.clientWidth;
+  const svgHeight = canvas.clientHeight;
+
+  let scale = 1;
+  let w = 0,
+    h = 0,
+    bottom = 0;
+
+  const round = (num) => Math.round(num * 100) / 100;
+
+  if (diagramType === "curveRectangle500" ||
+  diagramType === "curveRectangle250" ||
+  diagramType === "curveRectangle") {
+    w = Number(document.getElementById("topWidth").value);
+    h = Number(document.getElementById("height").value);
+    bottom = Number(document.getElementById("bottomWidth").value);
+
+    const wPx = toPx(w);
+    const hPx = toPx(h);
+    const bottomPx = toPx(bottom);
+
+    const scaleXFit = (svgWidth - 2 * margin) / Math.max(wPx, bottomPx);
+    const scaleYFit = (svgHeight - 2 * margin) / hPx;
+    scale = Math.min(scaleXFit, scaleYFit, 1);
+
+    const scaledWidth = wPx * scale;
+    const scaledHeight = hPx * scale;
+    const scaledBottomWidth = bottomPx * scale;
+    const scaledMaxWidth = Math.max(wPx, bottomPx) * scale;
+
+    const centerX = (svgWidth - scaledMaxWidth) / 2;
+    const centerY = (svgHeight - scaledHeight) / 2 + 100;
+
+    const topLeft = {
+      x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2),
+      y: Math.round(centerY),
+    };
+    const topRight = {
+      x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2),
+      y: Math.round(centerY),
+    };
+    const bottomLeft = {
+      x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2),
+      y: Math.round(centerY + scaledHeight),
+    };
+    const bottomRight = {
+      x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2),
+      y: bottomLeft.y,
+    };
+
+    const topHalf = wPx / 2;
+    const bottomHalf = bottomPx / 2;
+    const widthDiff = bottomHalf - topHalf;
+    const angleRad = Math.atan(widthDiff / hPx);
+
+    const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
+    const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(topLeft.x, topLeft.y);
+    ctx.quadraticCurveTo(
+      (topLeft.x + topRight.x) / 2,
+      topLeft.y - curveOffsetTop,
+      topRight.x,
+      topRight.y
+    );
+    ctx.lineTo(bottomRight.x, bottomRight.y);
+    ctx.quadraticCurveTo(
+      (bottomRight.x + bottomLeft.x) / 2,
+      bottomRight.y + curveOffsetBottom,
+      bottomLeft.x,
+      bottomLeft.y
+    );
+    ctx.closePath();
+    ctx.clip();
+
+    if (currentImage) {
+      const imgWidth = currentImage.width;
+      const imgHeight = currentImage.height;
+      const sliceCount = 2000;
+      const sliceW = imgWidth / sliceCount;
+      for (let i = 0; i < sliceCount; i++) {
+        const sx = i * sliceW;
+        const sw = sliceW;
+        const t1 = i / sliceCount;
+        const t2 = (i + 1) / sliceCount;
+
+        const topX1 = topLeft.x + (topRight.x - topLeft.x) * t1;
+        const topY1 = quadraticAt(
+          topLeft.y,
+          topLeft.y - curveOffsetTop,
+          topRight.y,
+          t1
+        );
+        const topX2 = topLeft.x + (topRight.x - topLeft.x) * t2;
+        const topY2 = quadraticAt(
+          topLeft.y,
+          topLeft.y - curveOffsetTop,
+          topRight.y,
+          t2
+        );
+
+        const bottomX1 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t1;
+        const bottomY1 = quadraticAt(
+          bottomLeft.y,
+          bottomRight.y + curveOffsetBottom,
+          bottomRight.y,
+          t1
+        );
+        const bottomX2 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t2;
+        const bottomY2 = quadraticAt(
+          bottomLeft.y,
+          bottomRight.y + curveOffsetBottom,
+          bottomRight.y,
+          t2
+        );
+
+        const angleTop = Math.atan2(topY2 - topY1, topX2 - topX1);
+        const angleBottom = Math.atan2(
+          bottomY2 - bottomY1,
+          bottomX2 - bottomX1
+        );
+        const angle = (angleTop + angleBottom) / 2;
+
+        const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+        const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+
+        ctx.save();
+        ctx.translate(topX1, topY1);
+        ctx.rotate(angle);
+        ctx.drawImage(
+          currentImage,
+          sx,
+          0,
+          sw,
+          imgHeight,
+          0,
+          0,
+          sliceWidth + 0.5,
+          sliceHeight
+        );
+        ctx.restore();
+      }
+      ctx.imageSmoothingEnabled = true;
+    } else {
+      ctx.fillStyle = "#eee";
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Outline
+    ctx.beginPath();
+    ctx.moveTo(topLeft.x, topLeft.y);
+    ctx.quadraticCurveTo(
+      (topLeft.x + topRight.x) / 2,
+      topLeft.y - curveOffsetTop,
+      topRight.x,
+      topRight.y
+    );
+    ctx.lineTo(bottomRight.x, bottomRight.y);
+    ctx.quadraticCurveTo(
+      (bottomRight.x + bottomLeft.x) / 2,
+      bottomRight.y + curveOffsetBottom,
+      bottomLeft.x,
+      bottomLeft.y
+    );
+    ctx.closePath();
+    ctx.lineWidth = Math.max(1, 1.2 * scale);
+    ctx.strokeStyle = "#222";
+    ctx.stroke();
+  } else if (diagramType === "squareWithRadius") {
+    w = Number(document.getElementById("sqWidth").value);
+    h = Number(document.getElementById("sqHeight").value);
+    const radiusInput = Number(document.getElementById("radius").value);
+
+    const wPx = toPx(w);
+    const hPx = toPx(h);
+
+    const scaleXFit = (svgWidth - 2 * margin) / wPx;
+    const scaleYFit = (svgHeight - 2 * margin) / hPx;
+    scale = Math.min(scaleXFit, scaleYFit, 1);
+
+    const scaledWidth = wPx * scale;
+    const scaledHeight = hPx * scale;
+
+    const centerX = (svgWidth - scaledWidth) / 2;
+    const centerY = (svgHeight - scaledHeight) / 2;
+
+    const rPx = Math.min(
+      toPx(radiusInput) * scale,
+      (Math.min(wPx, hPx) / 2) * scale
+    );
+
+    const topLeft = { x: round(centerX), y: round(centerY) };
+    const topRight = { x: round(centerX + scaledWidth), y: round(centerY) };
+    const bottomLeft = { x: round(centerX), y: round(centerY + scaledHeight) };
+    const bottomRight = {
+      x: round(centerX + scaledWidth),
+      y: round(centerY + scaledHeight),
+    };
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(topLeft.x + rPx, topLeft.y);
+    ctx.lineTo(topRight.x - rPx, topRight.y);
+    ctx.quadraticCurveTo(topRight.x, topRight.y, topRight.x, topRight.y + rPx);
+    ctx.lineTo(bottomRight.x, bottomRight.y - rPx);
+    ctx.quadraticCurveTo(
+      bottomRight.x,
+      bottomRight.y,
+      bottomRight.x - rPx,
+      bottomRight.y
+    );
+    ctx.lineTo(bottomLeft.x + rPx, bottomLeft.y);
+    ctx.quadraticCurveTo(
+      bottomLeft.x,
+      bottomLeft.y,
+      bottomLeft.x,
+      bottomLeft.y - rPx
+    );
+    ctx.lineTo(topLeft.x, topLeft.y + rPx);
+    ctx.quadraticCurveTo(topLeft.x, topLeft.y, topLeft.x + rPx, topLeft.y);
+    ctx.closePath();
+    ctx.clip();
+
+    if (currentImage) {
+      ctx.drawImage(
+        currentImage,
+        topLeft.x,
+        topLeft.y,
+        scaledWidth,
+        scaledHeight
+      );
+    } else {
+      ctx.fillStyle = "#eee";
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.moveTo(topLeft.x + rPx, topLeft.y);
+    ctx.lineTo(topRight.x - rPx, topRight.y);
+    ctx.quadraticCurveTo(topRight.x, topRight.y, topRight.x, topRight.y + rPx);
+    ctx.lineTo(bottomRight.x, bottomRight.y - rPx);
+    ctx.quadraticCurveTo(
+      bottomRight.x,
+      bottomRight.y,
+      bottomRight.x - rPx,
+      bottomRight.y
+    );
+    ctx.lineTo(bottomLeft.x + rPx, bottomLeft.y);
+    ctx.quadraticCurveTo(
+      bottomLeft.x,
+      bottomLeft.y,
+      bottomLeft.x,
+      bottomLeft.y - rPx
+    );
+    ctx.lineTo(topLeft.x, topLeft.y + rPx);
+    ctx.quadraticCurveTo(topLeft.x, topLeft.y, topLeft.x + rPx, topLeft.y);
+    ctx.closePath();
+    ctx.strokeStyle = "#222";
+    ctx.lineWidth = Math.max(1, 1.2 * scale);
+    ctx.stroke();
+  } else if (diagramType === "square") {
+    w = Number(document.getElementById("sqWidth").value);
+    h = Number(document.getElementById("sqHeight").value);
+
+    const wPx = toPx(w);
+    const hPx = toPx(h);
+
+    const scaleXFit = (svgWidth - 2 * margin) / wPx;
+    const scaleYFit = (svgHeight - 2 * margin) / hPx;
+    scale = Math.min(scaleXFit, scaleYFit, 1);
+
+    const scaledWidth = wPx * scale;
+    const scaledHeight = hPx * scale;
+
+    const x = (svgWidth - scaledWidth) / 2;
+    const y = (svgHeight - scaledHeight) / 2;
+
+    ctx.beginPath();
+    ctx.rect(x, y, scaledWidth, scaledHeight);
+    ctx.clip();
+
+    if (currentImage) {
+      ctx.drawImage(currentImage, x, y, scaledWidth, scaledHeight);
+    } else {
+      ctx.fillStyle = "#eee";
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.rect(x, y, scaledWidth, scaledHeight);
+    ctx.lineWidth = Math.max(1, 1.2 * scale);
+    ctx.strokeStyle = "#222";
+    ctx.stroke();
+  }
+  // Helper function to calculate quadratic curve
+  function quadraticAt(p0, p1, p2, t) {
+    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
+}
+
+// Update the export button to use the new function for PNG export
 document.getElementById("export").addEventListener("click", () => {
-  // Generate PNG data URL at full internal canvas resolution
+  // 1. Temporarily draw the shape without dimensions
+  drawKLDForExport();
+
+  // 2. Export canvas as PNG
   const imgData = canvas.toDataURL("image/png");
 
-  // Create an anchor element to trigger download
+  // Get selected shape type
+  const diagramType = document.getElementById("diagramType").value;
+
+  // Decide filename based on selected shape
+  let fileName = "shape_" + Date.now() + ".png";
+  if (diagramType === "curveRectangle") {
+    fileName = "curve_" + Date.now() + ".png";
+  } else if (diagramType === "squareWithRadius") {
+    fileName = "square-radius_" + Date.now() + ".png";
+  } else if (diagramType === "square") {
+    fileName = "square_" + Date.now() + ".png";
+  }
+
+  // Create and trigger download
   const link = document.createElement("a");
   link.href = imgData;
-  link.download = "curved_shape_high_res.png";
-
+  link.download = fileName;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+
+  // 3. Restore canvas with full drawing including dimensions
+  drawKLD();
 });
 
+
+window.onload = () => {
+  loadStateFromLocalStorage();
+  resizeCanvas();
+  updateInputs();
+};
