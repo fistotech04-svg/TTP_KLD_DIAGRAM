@@ -141,7 +141,7 @@ function updateInputs() {
     document.getElementById("radius").value = "25"; 
   }
 
-  if (diagramType === "curveRectangle500" || diagramType === "curveRectangle250" || diagramType === "squareWithRadius750") {
+  if (diagramType === "curveRectangle500" || diagramType === "curveRectangle250") {
   document.getElementById("topWidth").disabled = true;
   document.getElementById("bottomWidth").disabled = true;
   document.getElementById("height").disabled = true;
@@ -150,6 +150,17 @@ function updateInputs() {
   document.getElementById("bottomWidth").disabled = false;
   document.getElementById("height").disabled = false;
 }
+
+if(diagramType === "squareWithRadius750"){
+  document.getElementById("sqWidth").disabled = true;
+  document.getElementById("sqHeight").disabled = true;
+  document.getElementById("radius").disabled = true;
+}else{
+  document.getElementById("sqWidth").disabled = false;
+  document.getElementById("sqHeight").disabled = false;
+  document.getElementById("radius").disabled = false;
+}
+
   drawKLD();
 }
 
@@ -428,6 +439,7 @@ function drawKLD() {
   }else if (diagramType === "squareWithRadius750") {
   const w = Number(document.getElementById("sqWidth").value);
   const h = Number(document.getElementById("sqHeight").value);
+  bottom = w;
   const radiusInput = Number(document.getElementById("radius").value);
 
   const wPx = toPx(w);
@@ -509,14 +521,14 @@ function drawKLD() {
       topDimY - 12
     );
 
-    // const bottomDimY = bottomLeft.y + offset;
-    // drawArrow(ctx, bottomLeft.x, bottomDimY, bottomRight.x, bottomDimY, 8);
-    // drawArrow(ctx, bottomRight.x, bottomDimY, bottomLeft.x, bottomDimY, 8);
-    // ctx.fillText(
-    //   bottom.toFixed(2) + " " + units,
-    //   (bottomLeft.x + bottomRight.x) / 2,
-    //   bottomDimY + 16
-    // );
+    const bottomDimY = bottomLeft.y + offset;
+    drawArrow(ctx, bottomLeft.x, bottomDimY, bottomRight.x, bottomDimY, 8);
+    drawArrow(ctx, bottomRight.x, bottomDimY, bottomLeft.x, bottomDimY, 8);
+    ctx.fillText(
+      bottom.toFixed(2) + " " + units,
+      (bottomLeft.x + bottomRight.x) / 2,
+      bottomDimY + 16
+    );
 
     const heightDimX = topRight.x + offset;
     drawArrow(ctx, heightDimX, topRight.y, heightDimX, bottomRight.y, 8);
