@@ -121,6 +121,7 @@ function updateInputs() {
   document
     .getElementById("squareRadiusInputs")
     .classList.toggle("active", diagramType === "squareWithRadius");
+  document.getElementById("squareWithRadius750").classList.toggle("active",diagramType === "squareWithRadius750");
   document
     .getElementById("squareInputs")
     .classList.toggle("active", diagramType === "square");
@@ -134,8 +135,21 @@ function updateInputs() {
     document.getElementById("topWidth").value = 295.91;
     document.getElementById("bottomWidth").value = 245.14;
     document.getElementById("height").value = 37.92;
+  }else if(diagramType === "squareWithRadius750"){
+    document.getElementById("sqWidth").value = "162.5"; 
+    document.getElementById("sqHeight").value = "108.6"; 
+    document.getElementById("radius").value = "25"; 
   }
 
+  if (diagramType === "curveRectangle500" || diagramType === "curveRectangle250" || diagramType === "squareWithRadius750") {
+  document.getElementById("topWidth").disabled = true;
+  document.getElementById("bottomWidth").disabled = true;
+  document.getElementById("height").disabled = true;
+} else {
+  document.getElementById("topWidth").disabled = false;
+  document.getElementById("bottomWidth").disabled = false;
+  document.getElementById("height").disabled = false;
+}
   drawKLD();
 }
 
@@ -411,7 +425,109 @@ function drawKLD() {
     function quadraticAt(p0, p1, p2, t) {
       return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
     }
-  } else if (diagramType === "squareWithRadius") {
+  }else if (diagramType === "squareWithRadius750") {
+  const w = Number(document.getElementById("sqWidth").value);
+  const h = Number(document.getElementById("sqHeight").value);
+  const radiusInput = Number(document.getElementById("radius").value);
+
+  const wPx = toPx(w);
+  const hPx = toPx(h);
+
+  const scaleXFit = (canvas.clientWidth - 2 * margin) / wPx;
+  const scaleYFit = (canvas.clientHeight - 2 * margin) / hPx;
+  const scale = Math.min(scaleXFit, scaleYFit, 1);
+
+  const scaledWidth = wPx * scale;
+  const scaledHeight = hPx * scale;
+
+  const centerX = canvas.clientWidth / 2;
+  const centerY = canvas.clientHeight / 2;
+
+  const rPx = Math.min(toPx(radiusInput) * scale, scaledWidth / 2, scaledHeight / 2);
+
+  const topLeft = { x: Math.round(centerX - scaledWidth / 2), y: Math.round(centerY - scaledHeight / 2) };
+  const topRight = { x: Math.round(centerX + scaledWidth / 2), y: topLeft.y };
+  const bottomLeft = { x: topLeft.x, y: Math.round(centerY + scaledHeight / 2) };
+  const bottomRight = { x: topRight.x, y: bottomLeft.y };
+
+  // Draw rounded rectangle
+  ctx.save();
+  ctx.beginPath();
+
+  ctx.moveTo(topLeft.x + rPx, topLeft.y);
+  ctx.lineTo(topRight.x - rPx, topRight.y);
+  ctx.quadraticCurveTo(topRight.x, topRight.y, topRight.x, topRight.y + rPx);
+  ctx.lineTo(bottomRight.x, bottomRight.y - rPx);
+  ctx.quadraticCurveTo(bottomRight.x, bottomRight.y, bottomRight.x - rPx, bottomRight.y);
+  ctx.lineTo(bottomLeft.x + rPx, bottomLeft.y);
+  ctx.quadraticCurveTo(bottomLeft.x, bottomLeft.y, bottomLeft.x, bottomLeft.y - rPx);
+  ctx.lineTo(topLeft.x, topLeft.y + rPx);
+  ctx.quadraticCurveTo(topLeft.x, topLeft.y, topLeft.x + rPx, topLeft.y);
+
+  ctx.closePath();
+  ctx.clip();
+
+  if (currentImage) {
+    ctx.drawImage(currentImage, topLeft.x, topLeft.y, scaledWidth, scaledHeight);
+  } else {
+    ctx.fillStyle = "#eee";
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Draw outline
+  ctx.beginPath();
+  ctx.moveTo(topLeft.x + rPx, topLeft.y);
+  ctx.lineTo(topRight.x - rPx, topRight.y);
+  ctx.quadraticCurveTo(topRight.x, topRight.y, topRight.x, topRight.y + rPx);
+  ctx.lineTo(bottomRight.x, bottomRight.y - rPx);
+  ctx.quadraticCurveTo(bottomRight.x, bottomRight.y, bottomRight.x - rPx, bottomRight.y);
+  ctx.lineTo(bottomLeft.x + rPx, bottomLeft.y);
+  ctx.quadraticCurveTo(bottomLeft.x, bottomLeft.y, bottomLeft.x, bottomLeft.y - rPx);
+  ctx.lineTo(topLeft.x, topLeft.y + rPx);
+  ctx.quadraticCurveTo(topLeft.x, topLeft.y, topLeft.x + rPx, topLeft.y);
+  ctx.closePath();
+
+  ctx.lineWidth = Math.max(1, 1.2 * scale);
+  ctx.strokeStyle = "#222";
+  ctx.stroke();
+
+  // Dimension lines and text
+    ctx.strokeStyle = "blue";
+    ctx.fillStyle = "blue";
+    ctx.lineWidth = Math.max(1, 1 * scale);
+    ctx.font = `${Math.max(12, 20 * scale)}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const topDimY = topLeft.y - offset;
+    drawArrow(ctx, topLeft.x, topDimY, topRight.x, topDimY, 8);
+    drawArrow(ctx, topRight.x, topDimY, topLeft.x, topDimY, 8);
+    ctx.fillText(
+      w.toFixed(2) + " " + units,
+      (topLeft.x + topRight.x) / 2,
+      topDimY - 12
+    );
+
+    // const bottomDimY = bottomLeft.y + offset;
+    // drawArrow(ctx, bottomLeft.x, bottomDimY, bottomRight.x, bottomDimY, 8);
+    // drawArrow(ctx, bottomRight.x, bottomDimY, bottomLeft.x, bottomDimY, 8);
+    // ctx.fillText(
+    //   bottom.toFixed(2) + " " + units,
+    //   (bottomLeft.x + bottomRight.x) / 2,
+    //   bottomDimY + 16
+    // );
+
+    const heightDimX = topRight.x + offset;
+    drawArrow(ctx, heightDimX, topRight.y, heightDimX, bottomRight.y, 8);
+    drawArrow(ctx, heightDimX, bottomRight.y, heightDimX, topRight.y, 8);
+    ctx.save();
+    ctx.translate(heightDimX + 38, (topRight.y + bottomRight.y) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(h.toFixed(2) + " " + units, 0, 6);
+    ctx.restore();
+}
+ else if (diagramType === "squareWithRadius") {
     w = Number(document.getElementById("sqWidth").value);
     h = Number(document.getElementById("sqHeight").value);
     bottom = w;
@@ -675,7 +791,222 @@ function drawKLD() {
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(h.toFixed(2) + " " + units, 0, 6);
     ctx.restore();
+  }else if (diagramType === "sweetBox") {
+  // Inputs
+  const w = Number(document.getElementById("sweetWidth").value);
+  const h = Number(document.getElementById("sweetHeight").value);
+  const bendHeightInput = Number(document.getElementById("sweetBend").value);
+
+  // Bend factor (0 = flat, 1 = full bend)
+  const bendFactor = 0.5;
+
+  // Units to pixels
+  const wPx = toPx(w);
+  const hPx = toPx(h);
+  const bendPx = toPx(bendHeightInput);
+
+  const margin = 60;
+  const svgWidth = canvas.clientWidth;
+  const svgHeight = canvas.clientHeight;
+
+  // Scale
+  const scaleX = (svgWidth - 2 * margin) / wPx;
+  const scaleY = (svgHeight - 2 * margin) / hPx;
+  const scale = Math.min(scaleX, scaleY, 1);
+
+  const scaledWidth = wPx * scale;
+  const scaledHeight = hPx * scale;
+  const scaledBend = bendPx * scale;
+
+  const centerX = Math.round(svgWidth / 2);
+  const centerY = Math.round(svgHeight / 2);
+
+  // Top points with bends
+  const numPoints = 5;
+  const topPoints = [];
+  for (let i = 0; i < numPoints; i++) {
+    const x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
+    const bendOffset = scaledBend * bendFactor * Math.sin((Math.PI * i) / (numPoints - 1));
+    const y = centerY - scaledHeight / 2 - bendOffset;
+    topPoints.push({ x, y });
+  }
+
+  // Tangent slopes for bottom edge adjustment
+  const angleL = Math.atan2(topPoints[1].y - topPoints[0].y, topPoints[1].x - topPoints[0].x);
+  const angleR = Math.atan2(topPoints[numPoints - 1].y - topPoints[numPoints - 2].y, topPoints[numPoints - 1].x - topPoints[numPoints - 2].x);
+
+  // Bottom points
+  const bottomPoints = [];
+  for (let i = 0; i < numPoints; i++) {
+    let x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
+    let y = topPoints[i].y + scaledHeight;
+    if (i === 0) x += -Math.tan(angleL) * scaledHeight;
+    if (i === numPoints - 1) x += -Math.tan(angleR) * scaledHeight;
+    bottomPoints.push({ x, y });
+  }
+
+  // Calculate bend angles at top points
+  function angleBetweenPoints(p1, p2) {
+    return Math.atan2(p2.y - p1.y, p2.x - p1.x);
+  }
+  function calculateBendAngles(points) {
+    let angles = [];
+    for (let i = 1; i < points.length - 1; i++) {
+      let v1 = angleBetweenPoints(points[i], points[i - 1]);
+      let v2 = angleBetweenPoints(points[i], points[i + 1]);
+      angles.push((v1 + v2) / 2);
+    }
+    angles.unshift(angleBetweenPoints(points[0], points[1]));
+    angles.push(angleBetweenPoints(points[points.length - 2], points[points.length - 1]));
+    return angles;
+  }
+  const bendAngles = calculateBendAngles(topPoints);
+
+  // Linear interpolation helper
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  // Quadratic Bezier interpolation helper
+  function quadraticAt(p0, p1, p2, t) {
+    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
+
+  // Begin drawing
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(topPoints[0].x, topPoints[0].y);
+  for (let i = 1; i < numPoints; i++) {
+    const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
+    const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
+    ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
+  }
+  ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
+  for (let i = bottomPoints.length - 2; i >= 0; i--) {
+    const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
+    const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
+    ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
+  }
+  ctx.closePath();
+  ctx.clip();
+
+  if (currentImage) {
+    const sliceCount = 500;
+    const imgWidth = currentImage.width;
+    const imgHeight = currentImage.height;
+    const sliceW = imgWidth / sliceCount;
+
+    for (let i = 0; i < sliceCount; i++) {
+      const t = i / sliceCount;
+      const segmentLength = 1 / (numPoints - 1);
+      const segmentIndex = Math.min(Math.floor(t / segmentLength), numPoints - 2);
+      const localT = (t - segmentLength * segmentIndex) / segmentLength;
+
+      // Interpolate bend angle for rotation
+      const sliceAngle = lerp(bendAngles[segmentIndex], bendAngles[segmentIndex + 1], localT);
+
+      // Interpolate top slice coords
+      const topX1 = lerp(topPoints[segmentIndex].x, topPoints[segmentIndex + 1].x, localT);
+      const topY1 = lerp(topPoints[segmentIndex].y, topPoints[segmentIndex + 1].y, localT);
+
+      // Next slice top coords for width & direction
+      const nextT = (i + 1) / sliceCount;
+      const nextSegmentIndex = Math.min(Math.floor(nextT / segmentLength), numPoints - 2);
+      const nextLocalT = (nextT - segmentLength * nextSegmentIndex) / segmentLength;
+      const topX2 = lerp(topPoints[nextSegmentIndex].x, topPoints[nextSegmentIndex + 1].x, nextLocalT);
+      const topY2 = lerp(topPoints[nextSegmentIndex].y, topPoints[nextSegmentIndex + 1].y, nextLocalT);
+
+      // Interpolate bottom slice coords
+      const bottomX1 = lerp(bottomPoints[segmentIndex].x, bottomPoints[segmentIndex + 1].x, localT);
+      const bottomY1 = lerp(bottomPoints[segmentIndex].y, bottomPoints[segmentIndex + 1].y, localT);
+
+      // Slice width and height for drawing
+      const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+      const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+
+      ctx.save();
+      ctx.translate(topX1, topY1);
+      ctx.rotate(sliceAngle);
+      ctx.drawImage(
+        currentImage,
+        i * sliceW,
+        0,
+        sliceW,
+        imgHeight,
+        0,
+        0,
+        sliceWidth + 0.5,
+        sliceHeight
+      );
+      ctx.restore();
+    }
   } else {
+    ctx.fillStyle = "#eee";
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Draw shape outline
+  ctx.beginPath();
+  ctx.moveTo(topPoints[0].x, topPoints[0].y);
+  for (let i = 1; i < numPoints; i++) {
+    const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
+    const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
+    ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
+  }
+  ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
+  for (let i = bottomPoints.length - 2; i >= 0; i--) {
+    const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
+    const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
+    ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
+  }
+  ctx.closePath();
+  ctx.lineWidth = Math.max(1, 1.2 * scale);
+  ctx.strokeStyle = "#222";
+  ctx.stroke();
+
+  // === Dimensions ===
+  ctx.strokeStyle = "blue";
+  ctx.fillStyle = "blue";
+  ctx.lineWidth = Math.max(1, 1 * scale);
+  ctx.font = `${Math.max(12, 20 * scale)}px Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Top width
+  const topDimY = centerY - scaledHeight / 2 - 30 - scaledBend * bendFactor;
+  drawArrow(ctx, topPoints[0].x, topDimY, topPoints[numPoints - 1].x, topDimY, 8);
+  drawArrow(ctx, topPoints[numPoints - 1].x, topDimY, topPoints[0].x, topDimY, 8);
+  ctx.fillText(w.toFixed(2) + " " + units, centerX, topDimY - 12);
+
+  // Left height
+  const heightDimX = topPoints[0].x - 30;
+  drawArrow(ctx, heightDimX, topPoints[0].y, heightDimX, bottomPoints[0].y, 8);
+  drawArrow(ctx, heightDimX, bottomPoints[0].y, heightDimX, topPoints[0].y, 8);
+  ctx.save();
+  ctx.translate(heightDimX - 8, (topPoints[0].y + bottomPoints[0].y) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(h.toFixed(2) + " " + units, 0, 0);
+  ctx.restore();
+
+  // Bend dimension
+  const bendDimX = centerX + scaledWidth / 2 + 30;
+  const bendStartY = bottomPoints[0].y;
+  const bendEndY = topPoints[Math.floor(numPoints / 2)].y;
+  drawArrow(ctx, bendDimX, bendStartY, bendDimX, bendEndY, 8);
+  drawArrow(ctx, bendDimX, bendEndY, bendDimX, bendStartY, 8);
+  ctx.fillText(bendHeightInput.toFixed(2) + " " + units, bendDimX + 12, (bendStartY + bendEndY)/2);
+
+  // Helper function for quadratic interpolation
+  function quadraticAt(p0, p1, p2, t) {
+    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
+}
+
+
+
+
+ else {
     // ctx.fillStyle = "red";
     ctx.font = "24px Arial";
     ctx.textAlign = "center";
@@ -912,7 +1243,7 @@ function drawKLDForExport() {
     ctx.lineWidth = Math.max(1, 1.2 * scale);
     ctx.strokeStyle = "#222";
     ctx.stroke();
-  } else if (diagramType === "squareWithRadius") {
+  } else if (diagramType === "squareWithRadius" || diagramType === "squareWithRadius750") {
     w = Number(document.getElementById("sqWidth").value);
     h = Number(document.getElementById("sqHeight").value);
     const radiusInput = Number(document.getElementById("radius").value);
