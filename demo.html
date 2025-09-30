@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI to SVG Converter with CDN</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+    }
+    input[type="file"] {
+      display: block;
+      margin: 20px auto;
+    }
+    #viewer {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .message {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .loading {
+      color: #0078d7;
+    }
+    .error {
+      color: #d32f2f;
+    }
+    .success {
+      color: #2e7d32;
+    }
+    .svg-container svg {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #ccc;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+  </style>
+</head>
+<body>
+  <h1>AI to SVG Converter</h1>
+  <input type="file" id="fileInput" accept=".ai" />
+  <div id="viewer">
+    <div class="message">Please upload an AI file.</div>
+  </div>
+
+  <!-- ConvertAPI JS SDK CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/convertapi-js@1.0.8/lib/convertapi.min.js"></script>
+  <script>
+    const viewer = document.getElementById('viewer');
+    const fileInput = document.getElementById('fileInput');
+
+    // Replace with your actual ConvertAPI secret key
+    const API_SECRET_KEY = 'your_api_token_here';
+
+    function showMessage(text, type = '') {
+      viewer.innerHTML = `<div class="message ${type}">${text}</div>`;
+    }
+
+    async function convertAItoSVG(file) {
+      try {
+        showMessage('Converting AI file, please wait...', 'loading');
+
+        const convertApi = ConvertApi.auth(API_SECRET_KEY);
+
+        let params = convertApi.createParams();
+        params.add('File', file);
+
+        // Optional parameters (may be ignored for SVG)
+        params.add('MarginHorizontal', '1-10');
+        params.add('CropTo', 'BoundingBox');
+        params.add('ImageResolution', '150');
+        params.add('ImageWidth', '1920');
+        params.add('ImageHeight', '600');
+        params.add('ImageQuality', '95%');
+        params.add('ColorSpace', 'rgb');
+
+        let result = await convertApi.convert('ai', 'svg', params);
+        if (result.files && result.files.length > 0) {
+          const svgUrl = result.files[0].Url;
+
+          // Fetch the SVG text content
+          const response = await fetch(svgUrl);
+          const svgText = await response.text();
+
+          // Display SVG in viewer
+          viewer.innerHTML = '';
+          const svgContainer = document.createElement('div');
+          svgContainer.className = 'svg-container';
+          svgContainer.innerHTML = svgText;
+          viewer.appendChild(svgContainer);
+
+          // Show success message
+          const successMsg = document.createElement('div');
+          successMsg.className = 'message success';
+          successMsg.textContent = '✓ Successfully converted to SVG!';
+          viewer.appendChild(successMsg);
+
+          // Automatically trigger download
+          downloadSVG(svgText, file.name);
+        } else {
+          throw new Error('No files received from ConvertAPI.');
+        }
+      } catch (error) {
+        console.error(error);
+        showMessage(`Error: ${error.message}`, 'error');
+      }
+    }
+
+    function downloadSVG(svgContent, originalFileName) {
+      const filename = originalFileName.replace(/\.ai$/i, '.svg');
+      const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        convertAItoSVG(file);
+      } else {
+        showMessage('No file selected', 'error');
+      }
+    });
+  </script>
+</body>
+</html>

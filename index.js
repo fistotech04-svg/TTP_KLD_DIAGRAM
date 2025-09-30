@@ -1,9 +1,9 @@
+const DEFAULT_UNIT = "mm"; // always use mm
 let currentImage = null;
 
 function saveStateToLocalStorage() {
   const state = {
     diagramType: document.getElementById("diagramType").value,
-    units: document.getElementById("units").value,
     topWidth: document.getElementById("topWidth").value,
     bottomWidth: document.getElementById("bottomWidth").value,
     height: document.getElementById("height").value,
@@ -24,7 +24,6 @@ function loadStateFromLocalStorage() {
   const state = JSON.parse(saved);
 
   document.getElementById("diagramType").value = state.diagramType || "curveRectangle";
-  document.getElementById("units").value = state.units || "px";
 
   document.getElementById("topWidth").value = state.topWidth || "";
   document.getElementById("bottomWidth").value = state.bottomWidth || "";
@@ -58,15 +57,6 @@ window.addEventListener("resize", () => {
 document
   .getElementById("imageUpload")
   .addEventListener("input", handleImageUpload);
-document.getElementById("diagramType").addEventListener("change", () => {
-  updateInputs();
-  saveStateToLocalStorage();
-});
-
-document.getElementById("units").addEventListener("change", () => {
-  drawKLD();
-  saveStateToLocalStorage();
-});
 
 [
   "topWidth",
@@ -87,6 +77,7 @@ document.getElementById("units").addEventListener("change", () => {
   }
 });
 
+const uploadText = document.getElementById('uploadText');
 
 function handleImageUpload(event) {
   const file = event.target.files[0];
@@ -95,6 +86,7 @@ function handleImageUpload(event) {
     drawKLD();
     return;
   }
+  uploadText.textContent = `${file.name}`;
   const reader = new FileReader();
   reader.onload = function (e) {
     const img = new Image();
@@ -107,6 +99,68 @@ function handleImageUpload(event) {
   reader.readAsDataURL(file);
 }
 
+function updateModels() {
+  const shape = document.getElementById("shapeType").value;
+  const modelSelect = document.getElementById("modelType");
+
+  // Clear old options
+  modelSelect.innerHTML = "";
+
+  let models = [];
+  if (shape === "round") {
+    models = [
+      // { value: "curveRectangle", label: "Custom Round" },
+      { value: "curveRectangle500", label: "500 ml Round" },
+      { value: "curveRectangle250", label: "250 ml Round" },
+      { value: "curveRectangle750", label: "750 ml Round" },
+      { value: "curveRectangle1000", label: "1000 ml Round" }
+    ];
+  } else if (shape === "roundSquare") {
+    models = [
+      // { value: "squareWithRadius", label: "Custom Round Square" },
+      { value: "curveRectangle500ml_square", label: "500 ml" },
+      { value: "curveRectangle500g_square", label: "500 gms/450 ml Round" }
+    ];
+  } else if (shape === "rectangle") {
+    models = [
+      { value: "squareWithRadius750", label: "750 ml Rectangle" },
+      { value: "square", label: "500 ml Rectangle" }
+    ];
+  } else if (shape === "sweetBox") {
+    models = [
+      // { value: "sweetBox", label: "Custom Sweet Box" },
+      { value: "sweetBox250", label: "250 SB" },
+      { value: "sweetBox500", label: "500 SB" }
+    ];
+  } else if (shape === "teSweetBox") {
+    models = [
+      { value: "sweetBox250", label: "TE 250 SB" },
+      { value: "sweetBox500", label: "TE 500 SB" },
+    ];
+  }
+
+  models.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.value;
+    opt.textContent = m.label;
+    modelSelect.appendChild(opt);
+  });
+
+  // Auto-select first model
+  if (models.length > 0) {
+    modelSelect.value = models[0].value;
+    applyModel();
+  }
+}
+
+function applyModel() {
+  const model = document.getElementById("modelType").value;
+  document.getElementById("diagramType").value = model; // use existing diagramType logic
+  updateInputs();  // show relevant input fields
+  drawKLD();       // redraw
+}
+
+
 function updateInputs() {
   const diagramType = document.getElementById("diagramType").value;
 
@@ -115,7 +169,7 @@ function updateInputs() {
     "active",
     diagramType === "curveRectangle500" ||
       diagramType === "curveRectangle250" ||
-      diagramType === "curveRectangle"
+      diagramType === "curveRectangle750" || diagramType === "curveRectangle1000" || diagramType === "curveRectangle500g_square" || diagramType === "curveRectangle500ml_square"
   );
 
   document.getElementById("sweetBoxInputs").classList.toggle(
@@ -137,7 +191,7 @@ function updateInputs() {
 
   document.getElementById("squareInputs").classList.toggle(
     "active",
-    diagramType === "square"
+    diagramType === "square" || diagramType === "square750"
   );
 
   // Set default values for curveRectangles
@@ -149,16 +203,29 @@ function updateInputs() {
     document.getElementById("topWidth").value = 295.91;
     document.getElementById("bottomWidth").value = 245.14;
     document.getElementById("height").value = 37.92;
+  }else if(diagramType === "curveRectangle750"){
+    document.getElementById("topWidth").value = 300.91;
+    document.getElementById("bottomWidth").value = 245.14;
+    document.getElementById("height").value = 37.92;
+  }else if(diagramType === "curveRectangle1000"){
+    document.getElementById("topWidth").value = 310.91;
+    document.getElementById("bottomWidth").value = 245.14;
+    document.getElementById("height").value = 37.92;
+  }else if(diagramType === "curveRectangle500g_square"){
+    document.getElementById("topWidth").value = 309.322;
+    document.getElementById("bottomWidth").value = 245.178;
+    document.getElementById("height").value = 96.853;
+  }else if(diagramType === "curveRectangle500ml_square"){
+    document.getElementById("topWidth").value = 309.322;
+    document.getElementById("bottomWidth").value = 245.178;
+    document.getElementById("height").value = 98.853;
   }
 
   if (diagramType === "sweetBox250") {
     document.getElementById("sweetWidth").value = 467.83;
     document.getElementById("sweetHeight").value = 34.13;
     document.getElementById("sweetBend").value = 61.98;
-  }
-
-
-  if (diagramType === "sweetBox500") {
+  }else if(diagramType === "sweetBox500") {
     document.getElementById("sweetWidth").value = 630.19;
     document.getElementById("sweetHeight").value = 34.12;
     document.getElementById("sweetBend").value = 71.61;
@@ -175,27 +242,51 @@ function updateInputs() {
 }
 
 
+// Set default values for squareWithRadius750
+  if (diagramType === "square") {
+    document.getElementById("sqWidthOnly").value = 200;
+    document.getElementById("sqHeightOnly").value = 200;
+  } else if (diagramType === "square750") {
+    document.getElementById("sqWidthOnly").value = 162.5;
+    document.getElementById("sqHeightOnly").value = 108.6;
+  }
+
+  if(diagramType === "square" || diagramType === "square750"){
+     // Disable inputs to prevent user editing default values
+    document.getElementById("sqWidthOnly").disabled = true;
+    document.getElementById("sqHeightOnly").disabled = true;
+  }else{
+    // Enable inputs for other shapes
+    document.getElementById("sqWidthOnly").disabled = false;
+    document.getElementById("sqHeightOnly").disabled = false;
+  }
 
 
   // Set default values for squareWithRadius750
   if (diagramType === "squareWithRadius750") {
     document.getElementById("sqWidth750").value = 162.5;
     document.getElementById("sqHeight750").value = 108.6;
-    document.getElementById("radius750").value = 25;
+    document.getElementById("radius750").value = 0;
 
+    
+  }
+
+  if (diagramType === "squareWithRadius750") {
     // Disable inputs to prevent user editing default values
     document.getElementById("sqWidth750").disabled = true;
     document.getElementById("sqHeight750").disabled = true;
     document.getElementById("radius750").disabled = true;
-  } else {
+  }else{
     // Enable inputs for other shapes
     document.getElementById("sqWidth750").disabled = false;
     document.getElementById("sqHeight750").disabled = false;
     document.getElementById("radius750").disabled = false;
   }
 
-  // Disable inputs for curveRectangle variations
-  if (diagramType === "curveRectangle500" || diagramType === "curveRectangle250") {
+
+
+  // Disable inputs for curveRectangle variations 
+  if (diagramType === "curveRectangle500" || diagramType === "curveRectangle250" || diagramType === "curveRectangle750" || diagramType === "curveRectangle1000" || diagramType === "curveRectangle500g_square" || diagramType === "curveRectangle500ml_square") {
     document.getElementById("topWidth").disabled = true;
     document.getElementById("bottomWidth").disabled = true;
     document.getElementById("height").disabled = true;
@@ -224,7 +315,7 @@ function drawKLD() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const diagramType = document.getElementById("diagramType").value;
-  const units = document.getElementById("units").value;
+  const units = DEFAULT_UNIT;
 
   function toPx(value) {
     return value * unitToPx[units];
@@ -247,7 +338,7 @@ function drawKLD() {
   
   if (diagramType === "curveRectangle500" ||
   diagramType === "curveRectangle250" ||
-  diagramType === "curveRectangle") {
+  diagramType === "curveRectangle750" || diagramType === "curveRectangle1000" || diagramType === "curveRectangle500g_square" || diagramType === "curveRectangle500ml_square") {
     w = Number(document.getElementById("topWidth").value);
     h = Number(document.getElementById("height").value);
     bottom = Number(document.getElementById("bottomWidth").value);
@@ -735,7 +826,7 @@ function drawKLD() {
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(h.toFixed(2) + " " + units, 0, 6);
     ctx.restore();
-  } else if (diagramType === "square") {
+  } else if (diagramType === "square" || diagramType === "square750") {
     w = Number(document.getElementById("sqWidthOnly").value);
     h = Number(document.getElementById("sqHeightOnly").value);
     bottom = w;
@@ -1131,7 +1222,7 @@ function drawKLDForExport() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const diagramType = document.getElementById("diagramType").value;
-  const units = document.getElementById("units").value;
+  const units = DEFAULT_UNIT;
 
   function toPx(value) {
     return value * unitToPx[units];
@@ -1148,9 +1239,7 @@ function drawKLDForExport() {
 
   const round = (num) => Math.round(num * 100) / 100;
 
-  if (diagramType === "curveRectangle500" ||
-  diagramType === "curveRectangle250" ||
-  diagramType === "curveRectangle") {
+  if (diagramType === "curveRectangle500" || diagramType === "curveRectangle250" || diagramType === "curveRectangle750" || diagramType === "curveRectangle1000" || diagramType === "curveRectangle500g_square" || diagramType === "curveRectangle500ml_square") {
     w = Number(document.getElementById("topWidth").value);
     h = Number(document.getElementById("height").value);
     bottom = Number(document.getElementById("bottomWidth").value);
@@ -1403,7 +1492,7 @@ function drawKLDForExport() {
     ctx.strokeStyle = "#222";
     ctx.lineWidth = Math.max(1, 1.2 * scale);
     ctx.stroke();
-  } else if (diagramType === "square") {
+  } else if (diagramType === "square" || diagramType === "square750") {
     w = Number(document.getElementById("sqWidth").value);
     h = Number(document.getElementById("sqHeight").value);
 
@@ -1690,3 +1779,157 @@ window.onload = () => {
   resizeCanvas();
   updateInputs();
 };
+
+window.addEventListener("DOMContentLoaded", () => {
+  // Set default shape
+  document.getElementById("shapeType").value = "round";
+
+  // Populate models for Round
+  updateModels();
+
+  // Select the first model and apply it
+  const modelSelect = document.getElementById("modelType");
+  if (modelSelect.options.length > 0) {
+    modelSelect.value = modelSelect.options[0].value;
+    applyModel();
+  }
+});
+
+document.getElementById("exportSvg").addEventListener("click", exportAsWarpedSVG);
+
+function exportAsWarpedSVG() {
+  const diagramType = document.getElementById("diagramType").value;
+  if (!currentImage) {
+    alert("Please upload an image first.");
+    return;
+  }
+
+  const units = DEFAULT_UNIT;
+  function toPx(value) { return value * unitToPx[units]; }
+
+  const svgWidth = canvas.clientWidth;
+  const svgHeight = canvas.clientHeight;
+  const margin = 60;
+  let svgSlices = "";
+  let svgShape = "";
+
+  if (diagramType.startsWith("curveRectangle")) {
+    // (same geometry as drawKLDForExport)
+    const w = Number(document.getElementById("topWidth").value);
+    const h = Number(document.getElementById("height").value);
+    const bottom = Number(document.getElementById("bottomWidth").value);
+
+    const wPx = toPx(w);
+    const hPx = toPx(h);
+    const bottomPx = toPx(bottom);
+
+    const scaleXFit = (svgWidth - 2 * margin) / Math.max(wPx, bottomPx);
+    const scaleYFit = (svgHeight - 2 * margin) / hPx;
+    const scale = Math.min(scaleXFit, scaleYFit, 1);
+
+    const scaledWidth = wPx * scale;
+    const scaledHeight = hPx * scale;
+    const scaledBottomWidth = bottomPx * scale;
+    const scaledMaxWidth = Math.max(wPx, bottomPx) * scale;
+
+    const centerX = (svgWidth - scaledMaxWidth) / 2;
+    const centerY = (svgHeight - scaledHeight) / 2 + 100;
+
+    const topLeft = { x: centerX + (scaledMaxWidth - scaledWidth) / 2, y: centerY };
+    const topRight = { x: centerX + (scaledMaxWidth + scaledWidth) / 2, y: centerY };
+    const bottomLeft = { x: centerX + (scaledMaxWidth - scaledBottomWidth) / 2, y: centerY + scaledHeight };
+    const bottomRight = { x: centerX + (scaledMaxWidth + scaledBottomWidth) / 2, y: bottomLeft.y };
+
+    const topHalf = wPx / 2;
+    const bottomHalf = bottomPx / 2;
+    const widthDiff = bottomHalf - topHalf;
+    const angleRad = Math.atan(widthDiff / hPx);
+
+    const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
+    const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
+
+    // SVG shape outline
+    svgShape = `
+      <path d="
+        M ${topLeft.x},${topLeft.y}
+        Q ${(topLeft.x + topRight.x) / 2},${topLeft.y - curveOffsetTop} ${topRight.x},${topRight.y}
+        L ${bottomRight.x},${bottomRight.y}
+        Q ${(bottomRight.x + bottomLeft.x) / 2},${bottomRight.y + curveOffsetBottom} ${bottomLeft.x},${bottomLeft.y}
+        Z
+      " fill="none" stroke="black"/>
+    `;
+
+    // Now slice the image
+    const imgWidth = currentImage.width;
+    const imgHeight = currentImage.height;
+    const sliceCount = 1000; // keep smaller than canvas for SVG size
+    const sliceW = imgWidth / sliceCount;
+
+    for (let i = 0; i < sliceCount; i++) {
+      const sx = i * sliceW;
+      const sw = sliceW;
+
+      // Compute mapping of slice top/bottom (like canvas)
+      const t1 = i / sliceCount;
+      const t2 = (i + 1) / sliceCount;
+
+      const topX1 = topLeft.x + (topRight.x - topLeft.x) * t1;
+      const topY1 = quadraticAt(topLeft.y, topLeft.y - curveOffsetTop, topRight.y, t1);
+      const topX2 = topLeft.x + (topRight.x - topLeft.x) * t2;
+      const topY2 = quadraticAt(topLeft.y, topLeft.y - curveOffsetTop, topRight.y, t2);
+
+      const bottomX1 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t1;
+      const bottomY1 = quadraticAt(bottomLeft.y, bottomRight.y + curveOffsetBottom, bottomRight.y, t1);
+      const bottomX2 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t2;
+      const bottomY2 = quadraticAt(bottomLeft.y, bottomRight.y + curveOffsetBottom, bottomRight.y, t2);
+
+      // Approximate transform for slice
+      const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+      const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+      const angle = Math.atan2(topY2 - topY1, topX2 - topX1);
+
+      // Convert slice to base64
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = sw;
+      tempCanvas.height = imgHeight;
+      const tempCtx = tempCanvas.getContext("2d");
+      tempCtx.drawImage(currentImage, sx, 0, sw, imgHeight, 0, 0, sw, imgHeight);
+      const imgData = tempCanvas.toDataURL("image/png");
+
+      // Add <image> slice with transform
+      svgSlices += `
+        <image href="${imgData}"
+               x="${topX1}" y="${topY1}"
+               width="${sliceWidth}"
+               height="${sliceHeight}"
+               transform="rotate(${(angle * 180 / Math.PI).toFixed(2)},${topX1},${topY1})"
+               clip-path="url(#clipPath)"/>
+      `;
+    }
+  }
+
+  // Wrap final SVG
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">
+      <defs>
+        <clipPath id="clipPath">
+          ${svgShape}
+        </clipPath>
+      </defs>
+      ${svgSlices}
+      ${svgShape}
+    </svg>
+  `;
+
+  // Download
+  const blob = new Blob([svg], { type: "image/svg+xml" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "warped_shape_" + Date.now() + ".svg";
+  link.click();
+
+  function quadraticAt(p0, p1, p2, t) {
+    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
+}
+

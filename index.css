@@ -11,8 +11,9 @@ body {
   top: 0;
   display: flex;
   flex-wrap: nowrap;
-  gap: 20px;
+  gap: 15px;
   align-items: center;
+  justify-content: center;
   font-size: 16px;
   margin: 2vh auto;
   box-sizing: border-box;
@@ -28,7 +29,6 @@ label {
 }
 
 select,
-input[type="number"],
 input[type="file"] {
   margin-top: 6px;
   padding: 8px 12px;
@@ -41,8 +41,8 @@ input[type="file"] {
   width: 200px;
 }
 
-.export{
-  margin-top: 20px;
+input[type="number"] {
+  margin-top: 6px;
   padding: 8px 12px;
   font-size: 16px;
   border: 1.5px solid #ccc;
@@ -50,8 +50,20 @@ input[type="file"] {
   transition: border-color 0.25s ease;
   box-sizing: border-box;
   white-space: nowrap;
+  width: 120px;
+}
+
+.export{
+  margin-top: 20px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 1.5px solid #ccc;
+  border-radius: 6px;
+  transition: border-color 0.25s ease;
+  box-sizing: border-box;
+  white-space: nowrap;
   cursor: pointer;
-  background-color: #4a90e2;
+  background-color: #1880f7;
   color: white;
 }
 
@@ -74,6 +86,17 @@ input[type="number"]:focus {
   display: flex;
 }
 
+a{
+  text-decoration: none;
+  padding: 8px 12px;
+  margin-top: 20px;
+  background-color: rgb(222, 222, 0);
+  border-radius: 6px;
+  color: black;
+  font-weight: 500;
+  font-size: 14px;
+}
+
 .box_container {
   height: 84vh;
   width: 100%;
@@ -94,4 +117,31 @@ input[type="number"]:focus {
   margin: 0 auto;
   image-rendering: auto;
   overflow: auto;
+}
+.file-upload-label {
+  display: block;
+  border: 2px dashed #b3b3b3;
+  border-radius: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  text-align: center;
+  background: #fafbfc;
+  color: #333;
+  position: relative;
+  transition: border-color 0.2s;
+  user-select: none;
+}
+
+.file-upload-label:hover {
+  border-color: #4c8aff;
+}
+
+.file-upload-label input[type="file"] {
+  display: none;
+}
+
+.file-upload-label span {
+  color: #2661ff;
+  text-decoration: underline;
+  cursor: pointer;
 }
