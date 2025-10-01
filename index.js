@@ -23,7 +23,8 @@ function loadStateFromLocalStorage() {
 
   const state = JSON.parse(saved);
 
-  document.getElementById("diagramType").value = state.diagramType || "curveRectangle";
+  document.getElementById("diagramType").value =
+    state.diagramType || "curveRectangle";
 
   document.getElementById("topWidth").value = state.topWidth || "";
   document.getElementById("bottomWidth").value = state.bottomWidth || "";
@@ -36,7 +37,6 @@ function loadStateFromLocalStorage() {
   document.getElementById("sqWidthOnly").value = state.sqWidthOnly || "";
   document.getElementById("sqHeightOnly").value = state.sqHeightOnly || "";
 }
-
 
 const canvas = document.getElementById("kldCanvas");
 const ctx = canvas.getContext("2d");
@@ -77,20 +77,63 @@ document
   }
 });
 
-const uploadText = document.getElementById('uploadText');
+const uploadText = document.getElementById("uploadText");
 
+// Parse Dimension Text
+// function parseDimensions(dimensionText) {
+//   const parts = dimensionText.split('x').map(s => s.trim().replace('px', ''));
+//   if (parts.length !== 2) return null;
+//   return {
+//     width: parseFloat(parts[0]),
+//     height: parseFloat(parts[1]),
+//   };
+// }
+
+const imgError = document.getElementById("imgerror");
 function handleImageUpload(event) {
   const file = event.target.files[0];
+  const uploadText = document.getElementById("uploadText");
+  const fileInput = document.getElementById("imageUpload");
+  const imgError = document.getElementById("imgerror");
+  imgError.style.display = "none";
+  imgError.innerHTML = "";
+
   if (!file) {
     currentImage = null;
     drawKLD();
+    uploadText.innerHTML = "Drag and drop file here or <span>Browse</span>";
     return;
   }
-  uploadText.textContent = `${file.name}`;
+
   const reader = new FileReader();
   reader.onload = function (e) {
     const img = new Image();
     img.onload = () => {
+      const model = document.getElementById("modelType").value;
+      const expected = modelDimensions[model];
+
+      if (expected) {
+        if (img.width < expected[0] || img.height < expected[1]) {
+          imgError.style.display = "block";
+          imgError.innerHTML = `Uploaded image size (${img.width}x${img.height}) is smaller than required dimensions (${expected[0]}x${expected[1]}). Please upload a larger image.`;
+          fileInput.value = "";
+          uploadText.innerHTML =
+            "Drag and drop file here or <span>Browse</span>";
+          return;
+        }
+      }
+
+      // file name truncate and display
+      const fullName = file.name;
+      const dotIndex = fullName.lastIndexOf(".");
+      let name = dotIndex !== -1 ? fullName.substring(0, dotIndex) : fullName;
+      const ext = dotIndex !== -1 ? fullName.substring(dotIndex) : "";
+
+      if (name.length > 7) {
+        name = name.substring(0, 7);
+      }
+      uploadText.textContent = `${name}.......${ext}`;
+
       currentImage = img;
       drawKLD();
     };
@@ -98,6 +141,53 @@ function handleImageUpload(event) {
   };
   reader.readAsDataURL(file);
 }
+
+const dropArea = document.getElementById("dropArea");
+const fileInput = document.getElementById("imageUpload");
+
+// Highlight the area on dragging
+dropArea.addEventListener("dragover", function (e) {
+  e.preventDefault();
+  dropArea.classList.add("dragover");
+});
+
+// Remove highlight when dragging leaves
+dropArea.addEventListener("dragleave", function (e) {
+  e.preventDefault();
+  dropArea.classList.remove("dragover");
+});
+
+// Handle dropped files
+dropArea.addEventListener("drop", function (e) {
+  e.preventDefault();
+  dropArea.classList.remove("dragover");
+
+  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    const file = e.dataTransfer.files[0];
+    fileInput.files = e.dataTransfer.files;
+
+    // Truncate name to 7 characters if it's longer
+    const fullName = file.name;
+    const dotIndex = fullName.lastIndexOf(".");
+    let name = dotIndex !== -1 ? fullName.substring(0, dotIndex) : fullName;
+    const ext = dotIndex !== -1 ? fullName.substring(dotIndex) : "";
+
+    // Truncate the name to 7 characters if it's longer
+    if (name.length > 7) {
+      name = name.substring(0, 7);
+    }
+
+    // Always add 7 dots after the name
+    const displayText = `${name}.......${ext}`;
+
+    // Update the display text with the new name format
+    uploadText.textContent = displayText;
+
+    // Manually trigger the normal upload handler
+    const event = new Event("input", { bubbles: true });
+    fileInput.dispatchEvent(event);
+  }
+});
 
 function updateModels() {
   const shape = document.getElementById("shapeType").value;
@@ -113,24 +203,24 @@ function updateModels() {
       { value: "curveRectangle500", label: "500 ml Round" },
       { value: "curveRectangle250", label: "250 ml Round" },
       { value: "curveRectangle750", label: "750 ml Round" },
-      { value: "curveRectangle1000", label: "1000 ml Round" }
+      { value: "curveRectangle1000", label: "1000 ml Round" },
     ];
   } else if (shape === "roundSquare") {
     models = [
       // { value: "squareWithRadius", label: "Custom Round Square" },
       { value: "curveRectangle500ml_square", label: "500 ml" },
-      { value: "curveRectangle500g_square", label: "500 gms/450 ml Round" }
+      { value: "curveRectangle500g_square", label: "500 gms/450 ml Round" },
     ];
   } else if (shape === "rectangle") {
     models = [
       { value: "squareWithRadius750", label: "750 ml Rectangle" },
-      { value: "square", label: "500 ml Rectangle" }
+      { value: "square", label: "500 ml Rectangle" },
     ];
   } else if (shape === "sweetBox") {
     models = [
       // { value: "sweetBox", label: "Custom Sweet Box" },
       { value: "sweetBox250", label: "250 SB" },
-      { value: "sweetBox500", label: "500 SB" }
+      { value: "sweetBox500", label: "500 SB" },
     ];
   } else if (shape === "teSweetBox") {
     models = [
@@ -139,7 +229,7 @@ function updateModels() {
     ];
   }
 
-  models.forEach(m => {
+  models.forEach((m) => {
     const opt = document.createElement("option");
     opt.value = m.value;
     opt.textContent = m.label;
@@ -153,46 +243,102 @@ function updateModels() {
   }
 }
 
+const modelDimensions = {
+  curveRectangle500: [2890, 886],
+  curveRectangle250: [2906, 448],
+  curveRectangle750: [4363, 709],
+  curveRectangle1000: [4369, 709],
+  curveRectangle500g_square: [2924, 748],
+  curveRectangle500ml_square: [2924, 748],
+  square: [200, 200],
+  square750: [162.5, 108.6],
+  squareWithRadius750: [1488, 992],
+  sweetBox250: [467.83, 34.13],
+  sweetBox500: [630.19, 34.12],
+};
+
+function updateDimensionText() {
+  const model = document.getElementById("modelType").value;
+  const dimentionEl = document.getElementById("dimention");
+  const dim = modelDimensions[model];
+  if (dim && dim.length === 2) {
+    dimentionEl.textContent = `${dim[0]}px x ${dim[1]}px`;
+  } else {
+    dimentionEl.textContent = "";
+  }
+}
+
+function clearUploadedImage() {
+  currentImage = null;
+  const fileInput = document.getElementById("imageUpload");
+  const uploadText = document.getElementById("uploadText");
+  fileInput.value = "";
+  uploadText.innerHTML = "Drag and drop file here or <span>Browse</span>";
+  drawKLD(); // Redraw canvas without image
+}
+
+// Call this function inside shape change event handler
+document.getElementById("shapeType").addEventListener("change", () => {
+  updateModels();
+  updateDimensionText();
+  clearUploadedImage(); // Clear image on shape change
+  imgError.style.display = "none";
+});
+
+// Call this function inside model change event handler
+document.getElementById("modelType").addEventListener("change", () => {
+  applyModel();
+  updateDimensionText();
+  clearUploadedImage(); // Clear image on model change
+  imgError.style.display = "none";
+});
+
 function applyModel() {
   const model = document.getElementById("modelType").value;
   document.getElementById("diagramType").value = model; // use existing diagramType logic
-  updateInputs();  // show relevant input fields
-  drawKLD();       // redraw
+  updateInputs(); // show relevant input fields
+  drawKLD(); // redraw
 }
-
 
 function updateInputs() {
   const diagramType = document.getElementById("diagramType").value;
 
   // Toggle active class for input groups based on selection
-  document.getElementById("curveRectInputs").classList.toggle(
-    "active",
-    diagramType === "curveRectangle500" ||
-      diagramType === "curveRectangle250" ||
-      diagramType === "curveRectangle750" || diagramType === "curveRectangle1000" || diagramType === "curveRectangle500g_square" || diagramType === "curveRectangle500ml_square"
-  );
+  document
+    .getElementById("curveRectInputs")
+    .classList.toggle(
+      "active",
+      diagramType === "curveRectangle500" ||
+        diagramType === "curveRectangle250" ||
+        diagramType === "curveRectangle750" ||
+        diagramType === "curveRectangle1000" ||
+        diagramType === "curveRectangle500g_square" ||
+        diagramType === "curveRectangle500ml_square"
+    );
 
-  document.getElementById("sweetBoxInputs").classList.toggle(
-    "active",
-    diagramType === "sweetBox" ||
-      diagramType === "sweetBox250" ||
-      diagramType === "sweetBox500"
-  );
+  document
+    .getElementById("sweetBoxInputs")
+    .classList.toggle(
+      "active",
+      diagramType === "sweetBox" ||
+        diagramType === "sweetBox250" ||
+        diagramType === "sweetBox500"
+    );
 
-  document.getElementById("squareRadiusInputs").classList.toggle(
-    "active",
-    diagramType === "squareWithRadius"
-  );
+  document
+    .getElementById("squareRadiusInputs")
+    .classList.toggle("active", diagramType === "squareWithRadius" || diagramType === "squareWithRadius750");
 
-  document.getElementById("squareWithRadius750").classList.toggle(
-    "active",
-    diagramType === "squareWithRadius750"
-  );
+  // document
+  //   .getElementById("squareWithRadius750")
+  //   .classList.toggle("active", diagramType === "squareWithRadius750");
 
-  document.getElementById("squareInputs").classList.toggle(
-    "active",
-    diagramType === "square" || diagramType === "square750"
-  );
+  document
+    .getElementById("squareInputs")
+    .classList.toggle(
+      "active",
+      diagramType === "square" || diagramType === "square750"
+    );
 
   // Set default values for curveRectangles
   if (diagramType === "curveRectangle500") {
@@ -203,19 +349,19 @@ function updateInputs() {
     document.getElementById("topWidth").value = 295.91;
     document.getElementById("bottomWidth").value = 245.14;
     document.getElementById("height").value = 37.92;
-  }else if(diagramType === "curveRectangle750"){
+  } else if (diagramType === "curveRectangle750") {
     document.getElementById("topWidth").value = 300.91;
     document.getElementById("bottomWidth").value = 245.14;
     document.getElementById("height").value = 37.92;
-  }else if(diagramType === "curveRectangle1000"){
+  } else if (diagramType === "curveRectangle1000") {
     document.getElementById("topWidth").value = 310.91;
     document.getElementById("bottomWidth").value = 245.14;
     document.getElementById("height").value = 37.92;
-  }else if(diagramType === "curveRectangle500g_square"){
+  } else if (diagramType === "curveRectangle500g_square") {
     document.getElementById("topWidth").value = 309.322;
     document.getElementById("bottomWidth").value = 245.178;
     document.getElementById("height").value = 96.853;
-  }else if(diagramType === "curveRectangle500ml_square"){
+  } else if (diagramType === "curveRectangle500ml_square") {
     document.getElementById("topWidth").value = 309.322;
     document.getElementById("bottomWidth").value = 245.178;
     document.getElementById("height").value = 98.853;
@@ -225,24 +371,23 @@ function updateInputs() {
     document.getElementById("sweetWidth").value = 467.83;
     document.getElementById("sweetHeight").value = 34.13;
     document.getElementById("sweetBend").value = 61.98;
-  }else if(diagramType === "sweetBox500") {
+  } else if (diagramType === "sweetBox500") {
     document.getElementById("sweetWidth").value = 630.19;
     document.getElementById("sweetHeight").value = 34.12;
     document.getElementById("sweetBend").value = 71.61;
   }
 
   if (diagramType === "sweetBox250" || diagramType === "sweetBox500") {
-  document.getElementById("sweetWidth").disabled = true;
-  document.getElementById("sweetHeight").disabled = true;
-  document.getElementById("sweetBend").disabled = true;
-} else {
-  document.getElementById("sweetWidth").disabled = false;
-  document.getElementById("sweetHeight").disabled = false;
-  document.getElementById("sweetBend").disabled = false;
-}
+    document.getElementById("sweetWidth").disabled = true;
+    document.getElementById("sweetHeight").disabled = true;
+    document.getElementById("sweetBend").disabled = true;
+  } else {
+    document.getElementById("sweetWidth").disabled = false;
+    document.getElementById("sweetHeight").disabled = false;
+    document.getElementById("sweetBend").disabled = false;
+  }
 
-
-// Set default values for squareWithRadius750
+  // Set default values for squareWithRadius750
   if (diagramType === "square") {
     document.getElementById("sqWidthOnly").value = 200;
     document.getElementById("sqHeightOnly").value = 200;
@@ -251,42 +396,44 @@ function updateInputs() {
     document.getElementById("sqHeightOnly").value = 108.6;
   }
 
-  if(diagramType === "square" || diagramType === "square750"){
-     // Disable inputs to prevent user editing default values
+  if (diagramType === "square" || diagramType === "square750") {
+    // Disable inputs to prevent user editing default values
     document.getElementById("sqWidthOnly").disabled = true;
     document.getElementById("sqHeightOnly").disabled = true;
-  }else{
+  } else {
     // Enable inputs for other shapes
     document.getElementById("sqWidthOnly").disabled = false;
     document.getElementById("sqHeightOnly").disabled = false;
   }
 
-
   // Set default values for squareWithRadius750
   if (diagramType === "squareWithRadius750") {
-    document.getElementById("sqWidth750").value = 162.5;
-    document.getElementById("sqHeight750").value = 108.6;
-    document.getElementById("radius750").value = 0;
-
-    
+    document.getElementById("sqWidth").value = 162.5;
+    document.getElementById("sqHeight").value = 108.6;
+    document.getElementById("radius").value = 0;
   }
 
   if (diagramType === "squareWithRadius750") {
     // Disable inputs to prevent user editing default values
-    document.getElementById("sqWidth750").disabled = true;
-    document.getElementById("sqHeight750").disabled = true;
-    document.getElementById("radius750").disabled = true;
-  }else{
+    document.getElementById("sqWidth").disabled = true;
+    document.getElementById("sqHeight").disabled = true;
+    document.getElementById("radius").disabled = true;
+  } else {
     // Enable inputs for other shapes
-    document.getElementById("sqWidth750").disabled = false;
-    document.getElementById("sqHeight750").disabled = false;
-    document.getElementById("radius750").disabled = false;
+    document.getElementById("sqWidth").disabled = false;
+    document.getElementById("sqHeight").disabled = false;
+    document.getElementById("radius").disabled = false;
   }
 
-
-
-  // Disable inputs for curveRectangle variations 
-  if (diagramType === "curveRectangle500" || diagramType === "curveRectangle250" || diagramType === "curveRectangle750" || diagramType === "curveRectangle1000" || diagramType === "curveRectangle500g_square" || diagramType === "curveRectangle500ml_square") {
+  // Disable inputs for curveRectangle variations
+  if (
+    diagramType === "curveRectangle500" ||
+    diagramType === "curveRectangle250" ||
+    diagramType === "curveRectangle750" ||
+    diagramType === "curveRectangle1000" ||
+    diagramType === "curveRectangle500g_square" ||
+    diagramType === "curveRectangle500ml_square"
+  ) {
     document.getElementById("topWidth").disabled = true;
     document.getElementById("bottomWidth").disabled = true;
     document.getElementById("height").disabled = true;
@@ -299,7 +446,6 @@ function updateInputs() {
   // Trigger redraw after updates
   drawKLD();
 }
-
 
 const unitToPx = {
   px: 1,
@@ -335,10 +481,14 @@ function drawKLD() {
 
   const offset = 30; // 30px outside margin for all dimension lines
 
-  
-  if (diagramType === "curveRectangle500" ||
-  diagramType === "curveRectangle250" ||
-  diagramType === "curveRectangle750" || diagramType === "curveRectangle1000" || diagramType === "curveRectangle500g_square" || diagramType === "curveRectangle500ml_square") {
+  if (
+    diagramType === "curveRectangle500" ||
+    diagramType === "curveRectangle250" ||
+    diagramType === "curveRectangle750" ||
+    diagramType === "curveRectangle1000" ||
+    diagramType === "curveRectangle500g_square" ||
+    diagramType === "curveRectangle500ml_square"
+  ) {
     w = Number(document.getElementById("topWidth").value);
     h = Number(document.getElementById("height").value);
     bottom = Number(document.getElementById("bottomWidth").value);
@@ -362,7 +512,7 @@ function drawKLD() {
 
     // === Top-left of the bounding box for the curve shape, centered on canvas
     const centerX = (svgWidth - scaledMaxWidth) / 2;
-    const centerY = (svgHeight - scaledHeight) / 2 + 100; // auto vertical center
+    const centerY = (svgHeight - scaledHeight) / 2 + 60; // auto vertical center
 
     const topLeft = {
       x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2),
@@ -573,110 +723,7 @@ function drawKLD() {
     function quadraticAt(p0, p1, p2, t) {
       return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
     }
-  }else if (diagramType === "squareWithRadius750") {
-  const w = Number(document.getElementById("sqWidth750").value);
-  const h = Number(document.getElementById("sqHeight750").value);
-  bottom = w;
-  const radiusInput = Number(document.getElementById("radius750").value);
-
-  const wPx = toPx(w);
-  const hPx = toPx(h);
-
-  const scaleXFit = (canvas.clientWidth - 2 * margin) / wPx;
-  const scaleYFit = (canvas.clientHeight - 2 * margin) / hPx;
-  const scale = Math.min(scaleXFit, scaleYFit, 1);
-
-  const scaledWidth = wPx * scale;
-  const scaledHeight = hPx * scale;
-
-  const centerX = canvas.clientWidth / 2;
-  const centerY = canvas.clientHeight / 2;
-
-  const rPx = Math.min(toPx(radiusInput) * scale, scaledWidth / 2, scaledHeight / 2);
-
-  const topLeft = { x: Math.round(centerX - scaledWidth / 2), y: Math.round(centerY - scaledHeight / 2) };
-  const topRight = { x: Math.round(centerX + scaledWidth / 2), y: topLeft.y };
-  const bottomLeft = { x: topLeft.x, y: Math.round(centerY + scaledHeight / 2) };
-  const bottomRight = { x: topRight.x, y: bottomLeft.y };
-
-  // Draw rounded rectangle
-  ctx.save();
-  ctx.beginPath();
-
-  ctx.moveTo(topLeft.x + rPx, topLeft.y);
-  ctx.lineTo(topRight.x - rPx, topRight.y);
-  ctx.quadraticCurveTo(topRight.x, topRight.y, topRight.x, topRight.y + rPx);
-  ctx.lineTo(bottomRight.x, bottomRight.y - rPx);
-  ctx.quadraticCurveTo(bottomRight.x, bottomRight.y, bottomRight.x - rPx, bottomRight.y);
-  ctx.lineTo(bottomLeft.x + rPx, bottomLeft.y);
-  ctx.quadraticCurveTo(bottomLeft.x, bottomLeft.y, bottomLeft.x, bottomLeft.y - rPx);
-  ctx.lineTo(topLeft.x, topLeft.y + rPx);
-  ctx.quadraticCurveTo(topLeft.x, topLeft.y, topLeft.x + rPx, topLeft.y);
-
-  ctx.closePath();
-  ctx.clip();
-
-  if (currentImage) {
-    ctx.drawImage(currentImage, topLeft.x, topLeft.y, scaledWidth, scaledHeight);
-  } else {
-    ctx.fillStyle = "#eee";
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // Draw outline
-  ctx.beginPath();
-  ctx.moveTo(topLeft.x + rPx, topLeft.y);
-  ctx.lineTo(topRight.x - rPx, topRight.y);
-  ctx.quadraticCurveTo(topRight.x, topRight.y, topRight.x, topRight.y + rPx);
-  ctx.lineTo(bottomRight.x, bottomRight.y - rPx);
-  ctx.quadraticCurveTo(bottomRight.x, bottomRight.y, bottomRight.x - rPx, bottomRight.y);
-  ctx.lineTo(bottomLeft.x + rPx, bottomLeft.y);
-  ctx.quadraticCurveTo(bottomLeft.x, bottomLeft.y, bottomLeft.x, bottomLeft.y - rPx);
-  ctx.lineTo(topLeft.x, topLeft.y + rPx);
-  ctx.quadraticCurveTo(topLeft.x, topLeft.y, topLeft.x + rPx, topLeft.y);
-  ctx.closePath();
-
-  ctx.lineWidth = Math.max(1, 1.2 * scale);
-  ctx.strokeStyle = "#222";
-  ctx.stroke();
-
-  // Dimension lines and text
-    ctx.strokeStyle = "blue";
-    ctx.fillStyle = "blue";
-    ctx.lineWidth = Math.max(1, 1 * scale);
-    ctx.font = `${Math.max(12, 20 * scale)}px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    const topDimY = topLeft.y - offset;
-    drawArrow(ctx, topLeft.x, topDimY, topRight.x, topDimY, 8);
-    drawArrow(ctx, topRight.x, topDimY, topLeft.x, topDimY, 8);
-    ctx.fillText(
-      w.toFixed(2) + " " + units,
-      (topLeft.x + topRight.x) / 2,
-      topDimY - 12
-    );
-
-    const bottomDimY = bottomLeft.y + offset;
-    drawArrow(ctx, bottomLeft.x, bottomDimY, bottomRight.x, bottomDimY, 8);
-    drawArrow(ctx, bottomRight.x, bottomDimY, bottomLeft.x, bottomDimY, 8);
-    ctx.fillText(
-      bottom.toFixed(2) + " " + units,
-      (bottomLeft.x + bottomRight.x) / 2,
-      bottomDimY + 16
-    );
-
-    const heightDimX = topRight.x + offset;
-    drawArrow(ctx, heightDimX, topRight.y, heightDimX, bottomRight.y, 8);
-    drawArrow(ctx, heightDimX, bottomRight.y, heightDimX, topRight.y, 8);
-    ctx.save();
-    ctx.translate(heightDimX + 38, (topRight.y + bottomRight.y) / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText(h.toFixed(2) + " " + units, 0, 6);
-    ctx.restore();
-}
- else if (diagramType === "squareWithRadius") {
+  } else if (diagramType === "squareWithRadius" || diagramType === "squareWithRadius750") {
     w = Number(document.getElementById("sqWidth").value);
     h = Number(document.getElementById("sqHeight").value);
     bottom = w;
@@ -940,230 +987,296 @@ function drawKLD() {
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(h.toFixed(2) + " " + units, 0, 6);
     ctx.restore();
-  }else if (diagramType === "sweetBox" || diagramType === "sweetBox500" || diagramType === "sweetBox250") {
-  // Inputs
-  const w = Number(document.getElementById("sweetWidth").value);
-  const h = Number(document.getElementById("sweetHeight").value);
-  const bendHeightInput = Number(document.getElementById("sweetBend").value);
+  } else if (
+    diagramType === "sweetBox" ||
+    diagramType === "sweetBox500" ||
+    diagramType === "sweetBox250"
+  ) {
+    // Inputs
+    const w = Number(document.getElementById("sweetWidth").value);
+    const h = Number(document.getElementById("sweetHeight").value);
+    const bendHeightInput = Number(document.getElementById("sweetBend").value);
 
-  // Bend factor (0 = flat, 1 = full bend)
-  const bendFactor = 0.5;
+    // Bend factor (0 = flat, 1 = full bend)
+    const bendFactor = 0.5;
 
-  // Units to pixels
-  const wPx = toPx(w);
-  const hPx = toPx(h);
-  const bendPx = toPx(bendHeightInput);
+    // Units to pixels
+    const wPx = toPx(w);
+    const hPx = toPx(h);
+    const bendPx = toPx(bendHeightInput);
 
-  const margin = 60;
-  const svgWidth = canvas.clientWidth;
-  const svgHeight = canvas.clientHeight;
+    const margin = 60;
+    const svgWidth = canvas.clientWidth;
+    const svgHeight = canvas.clientHeight;
 
-  // Scale
-  const scaleX = (svgWidth - 2 * margin) / wPx;
-  const scaleY = (svgHeight - 2 * margin) / hPx;
-  const scale = Math.min(scaleX, scaleY, 1);
+    // Scale
+    const scaleX = (svgWidth - 2 * margin) / wPx;
+    const scaleY = (svgHeight - 2 * margin) / hPx;
+    const scale = Math.min(scaleX, scaleY, 1);
 
-  const scaledWidth = wPx * scale;
-  const scaledHeight = hPx * scale;
-  const scaledBend = bendPx * scale;
+    const scaledWidth = wPx * scale;
+    const scaledHeight = hPx * scale;
+    const scaledBend = bendPx * scale;
 
-  const centerX = Math.round(svgWidth / 2);
-  const centerY = Math.round(svgHeight / 2);
+    const centerX = Math.round(svgWidth / 2);
+    const centerY = Math.round(svgHeight / 2);
 
-  // Top points with bends
-  const numPoints = 5;
-  const topPoints = [];
-  for (let i = 0; i < numPoints; i++) {
-    const x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
-    const bendOffset = scaledBend * bendFactor * Math.sin((Math.PI * i) / (numPoints - 1));
-    const y = centerY - scaledHeight / 2 - bendOffset;
-    topPoints.push({ x, y });
-  }
-
-  // Tangent slopes for bottom edge adjustment
-  const angleL = Math.atan2(topPoints[1].y - topPoints[0].y, topPoints[1].x - topPoints[0].x);
-  const angleR = Math.atan2(topPoints[numPoints - 1].y - topPoints[numPoints - 2].y, topPoints[numPoints - 1].x - topPoints[numPoints - 2].x);
-
-  // Bottom points
-  const bottomPoints = [];
-  for (let i = 0; i < numPoints; i++) {
-    let x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
-    let y = topPoints[i].y + scaledHeight;
-    if (i === 0) x += -Math.tan(angleL) * scaledHeight;
-    if (i === numPoints - 1) x += -Math.tan(angleR) * scaledHeight;
-    bottomPoints.push({ x, y });
-  }
-
-  // Calculate bend angles at top points
-  function angleBetweenPoints(p1, p2) {
-    return Math.atan2(p2.y - p1.y, p2.x - p1.x);
-  }
-  function calculateBendAngles(points) {
-    let angles = [];
-    for (let i = 1; i < points.length - 1; i++) {
-      let v1 = angleBetweenPoints(points[i], points[i - 1]);
-      let v2 = angleBetweenPoints(points[i], points[i + 1]);
-      angles.push((v1 + v2) / 2);
+    // Top points with bends
+    const numPoints = 5;
+    const topPoints = [];
+    for (let i = 0; i < numPoints; i++) {
+      const x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
+      const bendOffset =
+        scaledBend * bendFactor * Math.sin((Math.PI * i) / (numPoints - 1));
+      const y = centerY - scaledHeight / 2 - bendOffset;
+      topPoints.push({ x, y });
     }
-    angles.unshift(angleBetweenPoints(points[0], points[1]));
-    angles.push(angleBetweenPoints(points[points.length - 2], points[points.length - 1]));
-    return angles;
-  }
-  const bendAngles = calculateBendAngles(topPoints);
 
-  // Linear interpolation helper
-  function lerp(a, b, t) {
-    return a + (b - a) * t;
-  }
+    // Tangent slopes for bottom edge adjustment
+    const angleL = Math.atan2(
+      topPoints[1].y - topPoints[0].y,
+      topPoints[1].x - topPoints[0].x
+    );
+    const angleR = Math.atan2(
+      topPoints[numPoints - 1].y - topPoints[numPoints - 2].y,
+      topPoints[numPoints - 1].x - topPoints[numPoints - 2].x
+    );
 
-  // Quadratic Bezier interpolation helper
-  function quadraticAt(p0, p1, p2, t) {
-    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
-  }
+    // Bottom points
+    const bottomPoints = [];
+    for (let i = 0; i < numPoints; i++) {
+      let x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
+      let y = topPoints[i].y + scaledHeight;
+      if (i === 0) x += -Math.tan(angleL) * scaledHeight;
+      if (i === numPoints - 1) x += -Math.tan(angleR) * scaledHeight;
+      bottomPoints.push({ x, y });
+    }
 
-  // Begin drawing
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(topPoints[0].x, topPoints[0].y);
-  for (let i = 1; i < numPoints; i++) {
-    const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
-    const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
-    ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
-  }
-  ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
-  for (let i = bottomPoints.length - 2; i >= 0; i--) {
-    const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
-    const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
-    ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
-  }
-  ctx.closePath();
-  ctx.clip();
+    // Calculate bend angles at top points
+    function angleBetweenPoints(p1, p2) {
+      return Math.atan2(p2.y - p1.y, p2.x - p1.x);
+    }
+    function calculateBendAngles(points) {
+      let angles = [];
+      for (let i = 1; i < points.length - 1; i++) {
+        let v1 = angleBetweenPoints(points[i], points[i - 1]);
+        let v2 = angleBetweenPoints(points[i], points[i + 1]);
+        angles.push((v1 + v2) / 2);
+      }
+      angles.unshift(angleBetweenPoints(points[0], points[1]));
+      angles.push(
+        angleBetweenPoints(points[points.length - 2], points[points.length - 1])
+      );
+      return angles;
+    }
+    const bendAngles = calculateBendAngles(topPoints);
 
-  if (currentImage) {
-    const sliceCount = 1000;
-    const imgWidth = currentImage.width;
-    const imgHeight = currentImage.height;
-    const sliceW = imgWidth / sliceCount;
+    // Linear interpolation helper
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
 
-    for (let i = 0; i < sliceCount; i++) {
-  const t = i / sliceCount;
-  const nextT = (i + 1) / sliceCount;
+    // Quadratic Bezier interpolation helper
+    function quadraticAt(p0, p1, p2, t) {
+      return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+    }
 
-  // Find segment indices and local ts for interpolation (same as before)
-  const segmentLength = 1 / (numPoints - 1);
-  const segmentIndex = Math.min(Math.floor(t / segmentLength), numPoints - 2);
-  const localT = (t - segmentLength * segmentIndex) / segmentLength;
-  const nextSegmentIndex = Math.min(Math.floor(nextT / segmentLength), numPoints - 2);
-  const nextLocalT = (nextT - segmentLength * nextSegmentIndex) / segmentLength;
+    // Begin drawing
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(topPoints[0].x, topPoints[0].y);
+    for (let i = 1; i < numPoints; i++) {
+      const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
+      const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
+      ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
+    }
+    ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
+    for (let i = bottomPoints.length - 2; i >= 0; i--) {
+      const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
+      const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
+      ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
+    }
+    ctx.closePath();
+    ctx.clip();
 
-  // Top slice edge coordinates (interpolated)
-  const topX1 = lerp(topPoints[segmentIndex].x, topPoints[segmentIndex + 1].x, localT);
-  const topY1 = lerp(topPoints[segmentIndex].y, topPoints[segmentIndex + 1].y, localT);
-  const topX2 = lerp(topPoints[nextSegmentIndex].x, topPoints[nextSegmentIndex + 1].x, nextLocalT);
-  const topY2 = lerp(topPoints[nextSegmentIndex].y, topPoints[nextSegmentIndex + 1].y, nextLocalT);
+    if (currentImage) {
+      const sliceCount = 1000;
+      const imgWidth = currentImage.width;
+      const imgHeight = currentImage.height;
+      const sliceW = imgWidth / sliceCount;
 
-  // Calculate rotation angle from slice segment slope (local tangent)
-  const sliceAngle = Math.atan2(topY2 - topY1, topX2 - topX1);
+      for (let i = 0; i < sliceCount; i++) {
+        const t = i / sliceCount;
+        const nextT = (i + 1) / sliceCount;
 
-  // Bottom slice edge coordinates (for height calculation)
-  const bottomX1 = lerp(bottomPoints[segmentIndex].x, bottomPoints[segmentIndex + 1].x, localT);
-  const bottomY1 = lerp(bottomPoints[segmentIndex].y, bottomPoints[segmentIndex + 1].y, localT);
+        // Find segment indices and local ts for interpolation (same as before)
+        const segmentLength = 1 / (numPoints - 1);
+        const segmentIndex = Math.min(
+          Math.floor(t / segmentLength),
+          numPoints - 2
+        );
+        const localT = (t - segmentLength * segmentIndex) / segmentLength;
+        const nextSegmentIndex = Math.min(
+          Math.floor(nextT / segmentLength),
+          numPoints - 2
+        );
+        const nextLocalT =
+          (nextT - segmentLength * nextSegmentIndex) / segmentLength;
 
-  // Calculate slice height and width
-  const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
-  const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+        // Top slice edge coordinates (interpolated)
+        const topX1 = lerp(
+          topPoints[segmentIndex].x,
+          topPoints[segmentIndex + 1].x,
+          localT
+        );
+        const topY1 = lerp(
+          topPoints[segmentIndex].y,
+          topPoints[segmentIndex + 1].y,
+          localT
+        );
+        const topX2 = lerp(
+          topPoints[nextSegmentIndex].x,
+          topPoints[nextSegmentIndex + 1].x,
+          nextLocalT
+        );
+        const topY2 = lerp(
+          topPoints[nextSegmentIndex].y,
+          topPoints[nextSegmentIndex + 1].y,
+          nextLocalT
+        );
 
-  ctx.save();
-  ctx.translate(topX1, topY1);
-  ctx.rotate(sliceAngle);  // Use local slope angle per slice here
-  ctx.drawImage(
-    currentImage,
-    i * sliceW,
-    0,
-    sliceW,
-    imgHeight,
-    0,
-    0,
-    sliceWidth + 0.6,
-    sliceHeight
-  );
-  ctx.restore();
-}
+        // Calculate rotation angle from slice segment slope (local tangent)
+        const sliceAngle = Math.atan2(topY2 - topY1, topX2 - topX1);
 
+        // Bottom slice edge coordinates (for height calculation)
+        const bottomX1 = lerp(
+          bottomPoints[segmentIndex].x,
+          bottomPoints[segmentIndex + 1].x,
+          localT
+        );
+        const bottomY1 = lerp(
+          bottomPoints[segmentIndex].y,
+          bottomPoints[segmentIndex + 1].y,
+          localT
+        );
+
+        // Calculate slice height and width
+        const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+        const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+
+        ctx.save();
+        ctx.translate(topX1, topY1);
+        ctx.rotate(sliceAngle); // Use local slope angle per slice here
+        ctx.drawImage(
+          currentImage,
+          i * sliceW,
+          0,
+          sliceW,
+          imgHeight,
+          0,
+          0,
+          sliceWidth + 0.6,
+          sliceHeight
+        );
+        ctx.restore();
+      }
+    } else {
+      ctx.fillStyle = "#eee";
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Draw shape outline
+    ctx.beginPath();
+    ctx.moveTo(topPoints[0].x, topPoints[0].y);
+    for (let i = 1; i < numPoints; i++) {
+      const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
+      const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
+      ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
+    }
+    ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
+    for (let i = bottomPoints.length - 2; i >= 0; i--) {
+      const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
+      const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
+      ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
+    }
+    ctx.closePath();
+    ctx.lineWidth = Math.max(1, 1.2 * scale);
+    ctx.strokeStyle = "#222";
+    ctx.stroke();
+
+    // === Dimensions ===
+    ctx.strokeStyle = "blue";
+    ctx.fillStyle = "blue";
+    ctx.lineWidth = Math.max(1, 1 * scale);
+    ctx.font = `${Math.max(12, 20 * scale)}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Top width dimension
+    const topDimY = centerY - scaledHeight / 2 - 30 - scaledBend * bendFactor;
+    drawArrow(
+      ctx,
+      topPoints[0].x,
+      topDimY,
+      topPoints[numPoints - 1].x,
+      topDimY,
+      8
+    );
+    drawArrow(
+      ctx,
+      topPoints[numPoints - 1].x,
+      topDimY,
+      topPoints[0].x,
+      topDimY,
+      8
+    );
+    ctx.fillText(w.toFixed(2) + " " + units, centerX, topDimY - 12);
+
+    // Left height dimension
+    const heightDimX = topPoints[0].x - 30;
+    drawArrow(
+      ctx,
+      heightDimX,
+      topPoints[0].y,
+      heightDimX,
+      bottomPoints[0].y,
+      8
+    );
+    drawArrow(
+      ctx,
+      heightDimX,
+      bottomPoints[0].y,
+      heightDimX,
+      topPoints[0].y,
+      8
+    );
+    ctx.save();
+    ctx.translate(heightDimX - 8, (topPoints[0].y + bottomPoints[0].y) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(h.toFixed(2) + " " + units, 0, 0);
+    ctx.restore();
+
+    // Bend height dimension (rotated text)
+    const bendDimX = centerX + scaledWidth / 2 + 30;
+    const bendStartY = bottomPoints[0].y;
+    const bendEndY = topPoints[Math.floor(numPoints / 2)].y;
+    drawArrow(ctx, bendDimX, bendStartY, bendDimX, bendEndY, 8);
+    drawArrow(ctx, bendDimX, bendEndY, bendDimX, bendStartY, 8);
+
+    const bendTextX = bendDimX + 12;
+    const bendTextY = (bendStartY + bendEndY) / 2;
+    ctx.save();
+    ctx.translate(bendTextX, bendTextY);
+    ctx.rotate(-Math.PI / 2); // Rotate text vertically
+    ctx.fillText(bendHeightInput.toFixed(2) + " " + units, 0, 0);
+    ctx.restore();
+
+    // Helper function for quadratic interpolation
+    function quadraticAt(p0, p1, p2, t) {
+      return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+    }
   } else {
-    ctx.fillStyle = "#eee";
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // Draw shape outline
-  ctx.beginPath();
-  ctx.moveTo(topPoints[0].x, topPoints[0].y);
-  for (let i = 1; i < numPoints; i++) {
-    const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
-    const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
-    ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
-  }
-  ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
-  for (let i = bottomPoints.length - 2; i >= 0; i--) {
-    const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
-    const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
-    ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
-  }
-  ctx.closePath();
-  ctx.lineWidth = Math.max(1, 1.2 * scale);
-  ctx.strokeStyle = "#222";
-  ctx.stroke();
-
-  // === Dimensions ===
-  ctx.strokeStyle = "blue";
-ctx.fillStyle = "blue";
-ctx.lineWidth = Math.max(1, 1 * scale);
-ctx.font = `${Math.max(12, 20 * scale)}px Arial`;
-ctx.textAlign = "center";
-ctx.textBaseline = "middle";
-
-// Top width dimension
-const topDimY = centerY - scaledHeight / 2 - 30 - scaledBend * bendFactor;
-drawArrow(ctx, topPoints[0].x, topDimY, topPoints[numPoints - 1].x, topDimY, 8);
-drawArrow(ctx, topPoints[numPoints - 1].x, topDimY, topPoints[0].x, topDimY, 8);
-ctx.fillText(w.toFixed(2) + " " + units, centerX, topDimY - 12);
-
-// Left height dimension
-const heightDimX = topPoints[0].x - 30;
-drawArrow(ctx, heightDimX, topPoints[0].y, heightDimX, bottomPoints[0].y, 8);
-drawArrow(ctx, heightDimX, bottomPoints[0].y, heightDimX, topPoints[0].y, 8);
-ctx.save();
-ctx.translate(heightDimX - 8, (topPoints[0].y + bottomPoints[0].y) / 2);
-ctx.rotate(-Math.PI / 2);
-ctx.fillText(h.toFixed(2) + " " + units, 0, 0);
-ctx.restore();
-
-// Bend height dimension (rotated text)
-const bendDimX = centerX + scaledWidth / 2 + 30;
-const bendStartY = bottomPoints[0].y;
-const bendEndY = topPoints[Math.floor(numPoints / 2)].y;
-drawArrow(ctx, bendDimX, bendStartY, bendDimX, bendEndY, 8);
-drawArrow(ctx, bendDimX, bendEndY, bendDimX, bendStartY, 8);
-
-const bendTextX = bendDimX + 12;
-const bendTextY = (bendStartY + bendEndY) / 2;
-ctx.save();
-ctx.translate(bendTextX, bendTextY);
-ctx.rotate(-Math.PI / 2); // Rotate text vertically
-ctx.fillText(bendHeightInput.toFixed(2) + " " + units, 0, 0);
-ctx.restore();
-
-  // Helper function for quadratic interpolation
-  function quadraticAt(p0, p1, p2, t) {
-    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
-  }
-}
-
-
-
-
- else {
     // ctx.fillStyle = "red";
     ctx.font = "24px Arial";
     ctx.textAlign = "center";
@@ -1239,7 +1352,14 @@ function drawKLDForExport() {
 
   const round = (num) => Math.round(num * 100) / 100;
 
-  if (diagramType === "curveRectangle500" || diagramType === "curveRectangle250" || diagramType === "curveRectangle750" || diagramType === "curveRectangle1000" || diagramType === "curveRectangle500g_square" || diagramType === "curveRectangle500ml_square") {
+  if (
+    diagramType === "curveRectangle500" ||
+    diagramType === "curveRectangle250" ||
+    diagramType === "curveRectangle750" ||
+    diagramType === "curveRectangle1000" ||
+    diagramType === "curveRectangle500g_square" ||
+    diagramType === "curveRectangle500ml_square"
+  ) {
     w = Number(document.getElementById("topWidth").value);
     h = Number(document.getElementById("height").value);
     bottom = Number(document.getElementById("bottomWidth").value);
@@ -1398,7 +1518,10 @@ function drawKLDForExport() {
     ctx.lineWidth = Math.max(1, 1.2 * scale);
     ctx.strokeStyle = "#222";
     ctx.stroke();
-  } else if (diagramType === "squareWithRadius" || diagramType === "squareWithRadius750") {
+  } else if (
+    diagramType === "squareWithRadius" ||
+    diagramType === "squareWithRadius750"
+  ) {
     w = Number(document.getElementById("sqWidth").value);
     h = Number(document.getElementById("sqHeight").value);
     const radiusInput = Number(document.getElementById("radius").value);
@@ -1493,8 +1616,8 @@ function drawKLDForExport() {
     ctx.lineWidth = Math.max(1, 1.2 * scale);
     ctx.stroke();
   } else if (diagramType === "square" || diagramType === "square750") {
-    w = Number(document.getElementById("sqWidth").value);
-    h = Number(document.getElementById("sqHeight").value);
+    w = Number(document.getElementById("sqWidthOnly").value);
+    h = Number(document.getElementById("sqHeightOnly").value);
 
     const wPx = toPx(w);
     const hPx = toPx(h);
@@ -1527,31 +1650,756 @@ function drawKLDForExport() {
     ctx.lineWidth = Math.max(1, 1.2 * scale);
     ctx.strokeStyle = "#222";
     ctx.stroke();
+  } else if (
+    diagramType === "sweetBox" ||
+    diagramType === "sweetBox500" ||
+    diagramType === "sweetBox250"
+  ) {
+    // Inputs
+    const w = Number(document.getElementById("sweetWidth").value);
+    const h = Number(document.getElementById("sweetHeight").value);
+    const bendHeightInput = Number(document.getElementById("sweetBend").value);
+    const bendFactor = 0.5;
+
+    // Convert to px
+    const wPx = toPx(w);
+    const hPx = toPx(h);
+    const bendPx = toPx(bendHeightInput);
+
+    // Canvas sizes
+    const margin = 60;
+    const svgWidth = canvas.clientWidth;
+    const svgHeight = canvas.clientHeight;
+
+    // Scale to fit
+    const scaleX = (svgWidth - 2 * margin) / wPx;
+    const scaleY = (svgHeight - 2 * margin) / hPx;
+    scale = Math.min(scaleX, scaleY, 1);
+
+    // Scaled values
+    const scaledWidth = wPx * scale;
+    const scaledHeight = hPx * scale;
+    const scaledBend = bendPx * scale;
+
+    const centerX = Math.round(svgWidth / 2);
+    const centerY = Math.round(svgHeight / 2);
+
+    // Calculate points of top curve with bends
+    const numPoints = 5;
+    const topPoints = [];
+    for (let i = 0; i < numPoints; i++) {
+      const x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
+      const bendOffset =
+        scaledBend * bendFactor * Math.sin((Math.PI * i) / (numPoints - 1));
+      const y = centerY - scaledHeight / 2 - bendOffset;
+      topPoints.push({ x, y });
+    }
+
+    // Calculate angles for bottom adjustment
+    const angleL = Math.atan2(
+      topPoints[1].y - topPoints[0].y,
+      topPoints[1].x - topPoints[0].x
+    );
+    const angleR = Math.atan2(
+      topPoints[numPoints - 1].y - topPoints[numPoints - 2].y,
+      topPoints[numPoints - 1].x - topPoints[numPoints - 2].x
+    );
+
+    // Bottom points
+    const bottomPoints = [];
+    for (let i = 0; i < numPoints; i++) {
+      let x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
+      let y = topPoints[i].y + scaledHeight;
+      if (i === 0) x += -Math.tan(angleL) * scaledHeight;
+      if (i === numPoints - 1) x += -Math.tan(angleR) * scaledHeight;
+      bottomPoints.push({ x, y });
+    }
+
+    ctx.save();
+
+    // Draw shape with smooth curves
+    ctx.beginPath();
+    ctx.moveTo(topPoints[0].x, topPoints[0].y);
+    for (let i = 1; i < numPoints; i++) {
+      const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
+      const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
+      ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
+    }
+    ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
+    for (let i = bottomPoints.length - 2; i >= 0; i--) {
+      const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
+      const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
+      ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
+    }
+    ctx.closePath();
+    ctx.clip();
+
+    // Draw image slices with slice angle rotation
+    if (currentImage) {
+      const sliceCount = 500;
+      const imgWidth = currentImage.width;
+      const imgHeight = currentImage.height;
+      const sliceW = imgWidth / sliceCount;
+
+      for (let i = 0; i < sliceCount; i++) {
+        const t = i / sliceCount;
+        const nextT = (i + 1) / sliceCount;
+        const segmentLength = 1 / (numPoints - 1);
+
+        const segmentIndex = Math.min(
+          Math.floor(t / segmentLength),
+          numPoints - 2
+        );
+        const localT = (t - segmentLength * segmentIndex) / segmentLength;
+        const nextSegmentIndex = Math.min(
+          Math.floor(nextT / segmentLength),
+          numPoints - 2
+        );
+        const nextLocalT =
+          (nextT - segmentLength * nextSegmentIndex) / segmentLength;
+
+        const topX1 = lerp(
+          topPoints[segmentIndex].x,
+          topPoints[segmentIndex + 1].x,
+          localT
+        );
+        const topY1 = lerp(
+          topPoints[segmentIndex].y,
+          topPoints[segmentIndex + 1].y,
+          localT
+        );
+        const topX2 = lerp(
+          topPoints[nextSegmentIndex].x,
+          topPoints[nextSegmentIndex + 1].x,
+          nextLocalT
+        );
+        const topY2 = lerp(
+          topPoints[nextSegmentIndex].y,
+          topPoints[nextSegmentIndex + 1].y,
+          nextLocalT
+        );
+
+        const bottomX1 = lerp(
+          bottomPoints[segmentIndex].x,
+          bottomPoints[segmentIndex + 1].x,
+          localT
+        );
+        const bottomY1 = lerp(
+          bottomPoints[segmentIndex].y,
+          bottomPoints[segmentIndex + 1].y,
+          localT
+        );
+
+        const sliceAngle = Math.atan2(topY2 - topY1, topX2 - topX1);
+        const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+        const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+
+        ctx.save();
+        ctx.translate(topX1, topY1);
+        ctx.rotate(sliceAngle);
+        ctx.drawImage(
+          currentImage,
+          i * sliceW,
+          0,
+          sliceW,
+          imgHeight,
+          0,
+          0,
+          sliceWidth + 0.5,
+          sliceHeight
+        );
+        ctx.restore();
+      }
+      function lerp(a, b, t) {
+        return a + (b - a) * t;
+      }
+    } else {
+      ctx.fillStyle = "#eee";
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // Draw shape outline with stroke
+    ctx.beginPath();
+    ctx.moveTo(topPoints[0].x, topPoints[0].y);
+    for (let i = 1; i < numPoints; i++) {
+      const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
+      const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
+      ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
+    }
+    ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
+    for (let i = bottomPoints.length - 2; i >= 0; i--) {
+      const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
+      const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
+      ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
+    }
+    ctx.closePath();
+    ctx.lineWidth = Math.max(1, 1.2 * scale);
+    ctx.strokeStyle = "#222";
+    ctx.stroke();
+
+    // === Dimensions ===
+    ctx.strokeStyle = "blue";
+    ctx.fillStyle = "blue";
+    ctx.lineWidth = Math.max(1, 1 * scale);
+    ctx.font = `${Math.max(12, 20 * scale)}px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // Top width dimension
+    const topDimY = centerY - scaledHeight / 2 - 30 - scaledBend * bendFactor;
+    drawArrow(
+      ctx,
+      topPoints[0].x,
+      topDimY,
+      topPoints[numPoints - 1].x,
+      topDimY,
+      8
+    );
+    drawArrow(
+      ctx,
+      topPoints[numPoints - 1].x,
+      topDimY,
+      topPoints[0].x,
+      topDimY,
+      8
+    );
+    ctx.fillText(w.toFixed(2) + " " + units, centerX, topDimY - 12);
+
+    // Left height dimension
+    const heightDimX = topPoints[0].x - 30;
+    drawArrow(
+      ctx,
+      heightDimX,
+      topPoints[0].y,
+      heightDimX,
+      bottomPoints[0].y,
+      8
+    );
+    drawArrow(
+      ctx,
+      heightDimX,
+      bottomPoints[0].y,
+      heightDimX,
+      topPoints[0].y,
+      8
+    );
+    ctx.save();
+    ctx.translate(heightDimX - 8, (topPoints[0].y + bottomPoints[0].y) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(h.toFixed(2) + " " + units, 0, 0);
+    ctx.restore();
+
+    // Bend height dimension (rotated text)
+    const bendDimX = centerX + scaledWidth / 2 + 30;
+    const bendStartY = bottomPoints[0].y;
+    const bendEndY = topPoints[Math.floor(numPoints / 2)].y;
+    drawArrow(ctx, bendDimX, bendStartY, bendDimX, bendEndY, 8);
+    drawArrow(ctx, bendDimX, bendEndY, bendDimX, bendStartY, 8);
+
+    const bendTextX = bendDimX + 12;
+    const bendTextY = (bendStartY + bendEndY) / 2;
+    ctx.save();
+    ctx.translate(bendTextX, bendTextY);
+    ctx.rotate(-Math.PI / 2); // Rotate text vertically
+    ctx.fillText(bendHeightInput.toFixed(2) + " " + units, 0, 0);
+    ctx.restore();
+
+    // Include or skip dimensions drawing based on mode, if needed
   }
-  else if (diagramType === "sweetBox" || diagramType === "sweetBox500" || diagramType === "sweetBox250") {
+
+  // Helper function to calculate quadratic curve
+  function quadraticAt(p0, p1, p2, t) {
+    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
+}
+
+// Update the export button to use the new function for PNG export
+document.getElementById("export").addEventListener("click", () => {
+  // 1. Temporarily draw the shape without dimensions
+  drawKLDForExport();
+
+  // 2. Export canvas as PNG
+  const imgData = canvas.toDataURL("image/png");
+
+  // Get selected shape type
+  const diagramType = document.getElementById("diagramType").value;
+
+  // Decide filename based on selected shape
+  let fileName = "shape_" + Date.now() + ".png";
+  if (diagramType === "curveRectangle") {
+    fileName = "curveRectangle_" + Date.now() + ".png";
+  } else if (diagramType === "curveRectangle500") {
+    fileName = "curveRectangle500_" + Date.now() + ".png";
+  } else if (diagramType === "curveRectangle250") {
+    fileName = "curveRectangle250_" + Date.now() + ".png";
+  } else if (diagramType === "squareWithRadius") {
+    fileName = "square-radius_" + Date.now() + ".png";
+  } else if (diagramType === "squareWithRadius750") {
+    fileName = "Rectangle750_" + Date.now() + ".png";
+  } else if (diagramType === "square") {
+    fileName = "square_" + Date.now() + ".png";
+  } else if (diagramType === "sweetBox") {
+    fileName = "sweetBox_" + Date.now() + ".png";
+  } else if (diagramType === "sweetBox500") {
+    fileName = "sweetBox500_" + Date.now() + ".png";
+  } else if (diagramType === "sweetBox250") {
+    fileName = "sweetBox250_" + Date.now() + ".png";
+  }
+
+  // Create and trigger download
+  const link = document.createElement("a");
+  link.href = imgData;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // 3. Restore canvas with full drawing including dimensions
+  drawKLD();
+});
+
+window.onload = () => {
+  loadStateFromLocalStorage();
+  resizeCanvas();
+  updateInputs();
+};
+
+window.addEventListener("DOMContentLoaded", () => {
+  // Set default shape
+  document.getElementById("shapeType").value = "round";
+
+  // Populate models for Round
+  updateModels();
+  updateDimensionText();
+
+  // Select the first model and apply it
+  const modelSelect = document.getElementById("modelType");
+  if (modelSelect.options.length > 0) {
+    modelSelect.value = modelSelect.options[0].value;
+    applyModel();
+  }
+});
+
+document
+  .getElementById("exportSvg")
+  .addEventListener("click", ()=>{
+    const diagramType = document.getElementById("diagramType").value;
+    if (
+    diagramType === "sweetBox" || 
+    diagramType === "sweetBox500" || 
+    diagramType === "sweetBox250"
+  ) {
+    exportSweetBoxAsSVG();
+  } else if (
+    diagramType.startsWith("curveRectangle")
+  ) {
+    exportAsWarpedSVG();
+  }else if(diagramType === "squareWithRadius750"){
+    exportRectangleRadiusAsSVG()
+  }
+  });
+
+function exportRectangleAsSVG() {
+  if (!currentImage) {
+    alert("Please upload an image first.");
+    return;
+  }
+
+  const units = DEFAULT_UNIT;
+  const toPx = (value) => value * unitToPx[units];
+
+  const svgWidth = canvas.clientWidth;
+  const svgHeight = canvas.clientHeight;
+  const margin = 60;
+
+  const w = Number(document.getElementById("sqWidthOnly").value);
+  const h = Number(document.getElementById("sqHeightOnly").value);
+
+  const wPx = toPx(w);
+  const hPx = toPx(h);
+
+  const scaleXFit = (svgWidth - 2 * margin) / wPx;
+  const scaleYFit = (svgHeight - 2 * margin) / hPx;
+  const scale = Math.min(scaleXFit, scaleYFit, 1);
+
+  const scaledWidth = wPx * scale;
+  const scaledHeight = hPx * scale;
+
+  const x = (svgWidth - scaledWidth) / 2;
+  const y = (svgHeight - scaledHeight) / 2;
+
+  // SVG rectangle path string
+  const svgShape = `<rect x="${x}" y="${y}" width="${scaledWidth}" height="${scaledHeight}" fill="none" stroke="black"/>`;
+
+  // Image slices as rectangular slices (simple warp)
+  const sliceCount = 2000;
+  const imgWidth = currentImage.width;
+  const imgHeight = currentImage.height;
+  const sliceW = imgWidth / sliceCount;
+
+  let svgSlices = '';
+  for (let i = 0; i < sliceCount; i++) {
+    const sx = i * sliceW;
+
+    // Calculate slice width in SVG
+    const sliceWidth = scaledWidth / sliceCount;
+    const sliceHeight = scaledHeight;
+
+    const sliceX = x + i * sliceWidth;
+    const sliceY = y;
+
+    // Create temp canvas slice image
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = sliceW;
+    tempCanvas.height = imgHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(currentImage, sx, 0, sliceW, imgHeight, 0, 0, sliceW, imgHeight);
+    const imgData = tempCanvas.toDataURL('image/png');
+
+    // Append SVG image slice
+    svgSlices += `
+      <image xlink:href="${imgData}" x="${sliceX}" y="${sliceY}" width="${sliceWidth}" height="${sliceHeight}" />
+    `;
+  }
+
+  // Compose full SVG markup
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         xmlns:xlink="http://www.w3.org/1999/xlink"
+         width="${svgWidth}" height="${svgHeight}">
+      ${svgSlices}
+      ${svgShape}
+    </svg>
+  `;
+
+  // Download SVG as file
+  const blob = new Blob([svg], {type: 'image/svg+xml'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `rectangle_${Date.now()}.svg`;
+  link.click();
+}
+
+function exportRectangleRadiusAsSVG() {
+  if (!currentImage) {
+    alert("Please upload an image first.");
+    return;
+  }
+
+  const units = DEFAULT_UNIT;
+  const toPx = (value) => value * unitToPx[units];
+
+  const svgWidth = canvas.clientWidth;
+  const svgHeight = canvas.clientHeight;
+  const margin = 60;
+
+  const w = Number(document.getElementById("sqWidth").value);
+  const h = Number(document.getElementById("sqHeight").value);
+  const radiusInput = Number(document.getElementById("radius")?.value || 0);
+
+  const wPx = toPx(w);
+  const hPx = toPx(h);
+  const rPx = Math.min(toPx(radiusInput), wPx / 2, hPx / 2);
+
+  const scaleXFit = (svgWidth - 2 * margin) / wPx;
+  const scaleYFit = (svgHeight - 2 * margin) / hPx;
+  const scale = Math.min(scaleXFit, scaleYFit, 1);
+
+  const scaledWidth = wPx * scale;
+  const scaledHeight = hPx * scale;
+  const scaledRadius = rPx * scale;
+
+  const x = (svgWidth - scaledWidth) / 2;
+  const y = (svgHeight - scaledHeight) / 2;
+
+  // Rounded rectangle SVG element
+  const svgShape = `<rect 
+                      x="${x}" y="${y}" 
+                      width="${scaledWidth}" height="${scaledHeight}" 
+                      rx="${scaledRadius}" ry="${scaledRadius}"
+                      fill="none" stroke="black" />`;
+
+  const sliceCount = 2000;
+  const imgWidth = currentImage.width;
+  const imgHeight = currentImage.height;
+  const sliceW = imgWidth / sliceCount;
+
+  const overlapFactor = 2; // add 2% overlap to remove white gap
+
+  let svgSlices = '';
+  for (let i = 0; i < sliceCount; i++) {
+    const sx = i * sliceW;
+
+    const sliceWidth = (scaledWidth / sliceCount) * overlapFactor;
+    const sliceHeight = scaledHeight;
+
+    const sliceX = x + i * (scaledWidth / sliceCount);
+    const sliceY = y;
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = sliceW;
+    tempCanvas.height = imgHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.imageSmoothingEnabled = false; // prevent blur
+    tempCtx.drawImage(
+      currentImage,
+      sx,
+      0,
+      sliceW,
+      imgHeight,
+      0,
+      0,
+      sliceW,
+      imgHeight
+    );
+    const imgData = tempCanvas.toDataURL('image/png');
+
+    svgSlices += `
+      <image xlink:href="${imgData}" 
+             x="${sliceX}" y="${sliceY}" 
+             width="${sliceWidth}" height="${sliceHeight}" 
+             preserveAspectRatio="none" />
+    `;
+  }
+
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" 
+       xmlns:xlink="http://www.w3.org/1999/xlink"
+       width="${svgWidth}" height="${svgHeight}">
+    ${svgSlices}
+    ${svgShape}
+  </svg>`;
+
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `rectangle_${Date.now()}.svg`;
+  link.click();
+}
+
+
+
+
+function exportAsWarpedSVG() {
+  const diagramType = document.getElementById("diagramType").value;
+  if (!currentImage) {
+    alert("Please upload an image first.");
+    return;
+  }
+
+  const units = DEFAULT_UNIT;
+  function toPx(value) {
+    return value * unitToPx[units];
+  }
+
+  const svgWidth = canvas.clientWidth;
+  const svgHeight = canvas.clientHeight;
+  const margin = 60;
+  let svgSlices = "";
+  let svgShape = "";
+
+  if (
+    diagramType === "curveRectangle500" ||
+    diagramType === "curveRectangle250" ||
+    diagramType === "curveRectangle750" ||
+    diagramType === "curveRectangle1000" ||
+    diagramType === "curveRectangle500g_square" ||
+    diagramType === "curveRectangle500ml_square"
+  ) {
+    const w = Number(document.getElementById("topWidth").value);
+    const h = Number(document.getElementById("height").value);
+    const bottom = Number(document.getElementById("bottomWidth").value);
+
+    const wPx = toPx(w);
+    const hPx = toPx(h);
+    const bottomPx = toPx(bottom);
+
+    const scaleXFit = (svgWidth - 2 * margin) / Math.max(wPx, bottomPx);
+    const scaleYFit = (svgHeight - 2 * margin) / hPx;
+    const scale = Math.min(scaleXFit, scaleYFit, 1);
+
+    const scaledWidth = wPx * scale;
+    const scaledHeight = hPx * scale;
+    const scaledBottomWidth = bottomPx * scale;
+    const scaledMaxWidth = Math.max(wPx, bottomPx) * scale;
+
+    const centerX = (svgWidth - scaledMaxWidth) / 2;
+    const centerY = (svgHeight - scaledHeight) / 2 + 100;
+
+    const topLeft = {
+      x: centerX + (scaledMaxWidth - scaledWidth) / 2,
+      y: centerY,
+    };
+    const topRight = {
+      x: centerX + (scaledMaxWidth + scaledWidth) / 2,
+      y: centerY,
+    };
+    const bottomLeft = {
+      x: centerX + (scaledMaxWidth - scaledBottomWidth) / 2,
+      y: centerY + scaledHeight,
+    };
+    const bottomRight = {
+      x: centerX + (scaledMaxWidth + scaledBottomWidth) / 2,
+      y: bottomLeft.y,
+    };
+
+    const topHalf = wPx / 2;
+    const bottomHalf = bottomPx / 2;
+    const widthDiff = bottomHalf - topHalf;
+    const angleRad = Math.atan(widthDiff / hPx);
+
+    const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
+    const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
+
+    svgShape = `
+      <path d="
+        M ${topLeft.x},${topLeft.y}
+        Q ${(topLeft.x + topRight.x) / 2},${topLeft.y - curveOffsetTop} ${topRight.x},${topRight.y}
+        L ${bottomRight.x},${bottomRight.y}
+        Q ${(bottomRight.x + bottomLeft.x) / 2},${bottomRight.y + curveOffsetBottom} ${bottomLeft.x},${bottomLeft.y}
+        Z
+      " fill="none" stroke="black"/>
+    `;
+
+    // Increase slice count for tighter slices
+    const sliceCount = 2000;
+    const imgWidth = currentImage.width;
+    const imgHeight = currentImage.height;
+    const sliceW = imgWidth / sliceCount;
+
+    const overlapFactor = 1.7; // add 2% overlap
+
+    svgSlices = "";
+    for (let i = 0; i < sliceCount; i++) {
+      const sx = i * sliceW;
+      const t1 = i / sliceCount;
+      const t2 = (i + 1) / sliceCount;
+
+      const topX1 = topLeft.x + (topRight.x - topLeft.x) * t1;
+      const topY1 = quadraticAt(
+        topLeft.y,
+        topLeft.y - curveOffsetTop,
+        topRight.y,
+        t1
+      );
+      const topX2 = topLeft.x + (topRight.x - topLeft.x) * t2;
+      const topY2 = quadraticAt(
+        topLeft.y,
+        topLeft.y - curveOffsetTop,
+        topRight.y,
+        t2
+      );
+
+      const bottomX1 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t1;
+      const bottomY1 = quadraticAt(
+        bottomLeft.y,
+        bottomRight.y + curveOffsetBottom,
+        bottomRight.y,
+        t1
+      );
+      const bottomX2 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t2;
+      const bottomY2 = quadraticAt(
+        bottomLeft.y,
+        bottomRight.y + curveOffsetBottom,
+        bottomRight.y,
+        t2
+      );
+
+      const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1) * overlapFactor;
+      const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+
+      const angle =
+        (Math.atan2(topY2 - topY1, topX2 - topX1) +
+          Math.atan2(bottomY2 - bottomY1, bottomX2 - bottomX1)) / 2;
+      const degAngle = (angle * 180) / Math.PI;
+
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = sliceW;
+      tempCanvas.height = imgHeight;
+      const tempCtx = tempCanvas.getContext("2d");
+      tempCtx.imageSmoothingEnabled = false; // prevent blurring
+      tempCtx.drawImage(
+        currentImage,
+        sx,
+        0,
+        sliceW,
+        imgHeight,
+        0,
+        0,
+        sliceW,
+        imgHeight
+      );
+      const imgData = tempCanvas.toDataURL("image/png");
+
+      svgSlices += `
+        <image xlink:href="${imgData}"
+               x="${topX1}" y="${topY1}"
+               width="${sliceWidth}"
+               height="${sliceHeight}"
+               transform="rotate(${degAngle.toFixed(3)},${topX1},${topY1})"
+               preserveAspectRatio="none"/>
+      `;
+    }
+
+    const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg"
+         xmlns:xlink="http://www.w3.org/1999/xlink"
+         width="${svgWidth}" height="${svgHeight}">
+      <defs>
+        <clipPath id="clipPath">
+          ${svgShape}
+        </clipPath>
+      </defs>
+      ${svgSlices}
+      ${svgShape}
+    </svg>
+  `;
+
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "warped_shape_" + Date.now() + ".svg";
+    link.click();
+
+    console.log("Generated SVG:", svg);
+
+    function quadraticAt(p0, p1, p2, t) {
+      return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+    }
+  }
+}
+
+
+function exportSweetBoxAsSVG() {
+  if (!currentImage) {
+    alert("Please upload an image first.");
+    return;
+  }
+
+  const units = DEFAULT_UNIT;
+  const toPx = (value) => value * unitToPx[units];
+
   // Inputs
   const w = Number(document.getElementById("sweetWidth").value);
   const h = Number(document.getElementById("sweetHeight").value);
   const bendHeightInput = Number(document.getElementById("sweetBend").value);
   const bendFactor = 0.5;
 
-  // Convert to px
+  // Convert units to pixels
   const wPx = toPx(w);
   const hPx = toPx(h);
   const bendPx = toPx(bendHeightInput);
-
-  // Canvas sizes
   const margin = 60;
   const svgWidth = canvas.clientWidth;
   const svgHeight = canvas.clientHeight;
 
-  // Scale to fit
+  // Scale
   const scaleX = (svgWidth - 2 * margin) / wPx;
   const scaleY = (svgHeight - 2 * margin) / hPx;
-  scale = Math.min(scaleX, scaleY, 1);
+  const scale = Math.min(scaleX, scaleY, 1);
 
-
-  // Scaled values
   const scaledWidth = wPx * scale;
   const scaledHeight = hPx * scale;
   const scaledBend = bendPx * scale;
@@ -1559,7 +2407,7 @@ function drawKLDForExport() {
   const centerX = Math.round(svgWidth / 2);
   const centerY = Math.round(svgHeight / 2);
 
-  // Calculate points of top curve with bends
+  // Calculate top points with bend
   const numPoints = 5;
   const topPoints = [];
   for (let i = 0; i < numPoints; i++) {
@@ -1586,350 +2434,99 @@ function drawKLDForExport() {
     bottomPoints.push({ x, y });
   }
 
-  ctx.save();
-
-  // Draw shape with smooth curves
-  ctx.beginPath();
-  ctx.moveTo(topPoints[0].x, topPoints[0].y);
+  // Build SVG path using quadratic curves (matching canvas rendering)
+  let pathData = `M ${topPoints[0].x},${topPoints[0].y}`;
   for (let i = 1; i < numPoints; i++) {
     const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
     const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
-    ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
+    pathData += ` Q ${cpX},${cpY} ${topPoints[i].x},${topPoints[i].y}`;
   }
-  ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
+  pathData += ` L ${bottomPoints[numPoints - 1].x},${bottomPoints[numPoints - 1].y}`;
   for (let i = bottomPoints.length - 2; i >= 0; i--) {
     const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
     const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
-    ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
+    pathData += ` Q ${cpX},${cpY} ${bottomPoints[i].x},${bottomPoints[i].y}`;
   }
-  ctx.closePath();
-  ctx.clip();
+  pathData += ' Z';
 
-  // Draw image slices with slice angle rotation
-  if (currentImage) {
-    const sliceCount = 500;
-    const imgWidth = currentImage.width;
-    const imgHeight = currentImage.height;
-    const sliceW = imgWidth / sliceCount;
+  // Slice image into warped pieces
+  const sliceCount = 1000;
+  const imgWidth = currentImage.width;
+  const imgHeight = currentImage.height;
+  const sliceW = imgWidth / sliceCount;
+  let svgSlices = '';
 
-    for (let i = 0; i < sliceCount; i++) {
-      const t = i / sliceCount;
-      const nextT = (i + 1) / sliceCount;
-      const segmentLength = 1 / (numPoints - 1);
-
-      const segmentIndex = Math.min(Math.floor(t / segmentLength), numPoints - 2);
-      const localT = (t - segmentLength * segmentIndex) / segmentLength;
-      const nextSegmentIndex = Math.min(Math.floor(nextT / segmentLength), numPoints - 2);
-      const nextLocalT = (nextT - segmentLength * nextSegmentIndex) / segmentLength;
-
-      const topX1 = lerp(topPoints[segmentIndex].x, topPoints[segmentIndex + 1].x, localT);
-      const topY1 = lerp(topPoints[segmentIndex].y, topPoints[segmentIndex + 1].y, localT);
-      const topX2 = lerp(topPoints[nextSegmentIndex].x, topPoints[nextSegmentIndex + 1].x, nextLocalT);
-      const topY2 = lerp(topPoints[nextSegmentIndex].y, topPoints[nextSegmentIndex + 1].y, nextLocalT);
-
-      const bottomX1 = lerp(bottomPoints[segmentIndex].x, bottomPoints[segmentIndex + 1].x, localT);
-      const bottomY1 = lerp(bottomPoints[segmentIndex].y, bottomPoints[segmentIndex + 1].y, localT);
-
-      const sliceAngle = Math.atan2(topY2 - topY1, topX2 - topX1);
-      const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
-      const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
-
-      ctx.save();
-      ctx.translate(topX1, topY1);
-      ctx.rotate(sliceAngle);
-      ctx.drawImage(
-        currentImage,
-        i * sliceW,
-        0,
-        sliceW,
-        imgHeight,
-        0,
-        0,
-        sliceWidth + 0.5,
-        sliceHeight
-      );
-      ctx.restore();
-    }
-    function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
-
-  } else {
-    ctx.fillStyle = "#eee";
-    ctx.fill();
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
   }
 
-  ctx.restore();
+  for (let i = 0; i < sliceCount; i++) {
+    const t = i / sliceCount;
+    const nextT = (i + 1) / sliceCount;
 
-  // Draw shape outline with stroke
-  ctx.beginPath();
-  ctx.moveTo(topPoints[0].x, topPoints[0].y);
-  for (let i = 1; i < numPoints; i++) {
-    const cpX = (topPoints[i - 1].x + topPoints[i].x) / 2;
-    const cpY = (topPoints[i - 1].y + topPoints[i].y) / 2;
-    ctx.quadraticCurveTo(cpX, cpY, topPoints[i].x, topPoints[i].y);
-  }
-  ctx.lineTo(bottomPoints[numPoints - 1].x, bottomPoints[numPoints - 1].y);
-  for (let i = bottomPoints.length - 2; i >= 0; i--) {
-    const cpX = (bottomPoints[i + 1].x + bottomPoints[i].x) / 2;
-    const cpY = (bottomPoints[i + 1].y + bottomPoints[i].y) / 2;
-    ctx.quadraticCurveTo(cpX, cpY, bottomPoints[i].x, bottomPoints[i].y);
-  }
-  ctx.closePath();
-  ctx.lineWidth = Math.max(1, 1.2 * scale);
-  ctx.strokeStyle = "#222";
-  ctx.stroke();
+    const segmentLength = 1 / (numPoints - 1);
+    const segmentIndex = Math.min(Math.floor(t / segmentLength), numPoints - 2);
+    const localT = (t - segmentLength * segmentIndex) / segmentLength;
+    const nextSegmentIndex = Math.min(Math.floor(nextT / segmentLength), numPoints - 2);
+    const nextLocalT = (nextT - segmentLength * nextSegmentIndex) / segmentLength;
 
-  // === Dimensions ===
-  ctx.strokeStyle = "blue";
-ctx.fillStyle = "blue";
-ctx.lineWidth = Math.max(1, 1 * scale);
-ctx.font = `${Math.max(12, 20 * scale)}px Arial`;
-ctx.textAlign = "center";
-ctx.textBaseline = "middle";
+    const topX1 = lerp(topPoints[segmentIndex].x, topPoints[segmentIndex + 1].x, localT);
+    const topY1 = lerp(topPoints[segmentIndex].y, topPoints[segmentIndex + 1].y, localT);
+    const topX2 = lerp(topPoints[nextSegmentIndex].x, topPoints[nextSegmentIndex + 1].x, nextLocalT);
+    const topY2 = lerp(topPoints[nextSegmentIndex].y, topPoints[nextSegmentIndex + 1].y, nextLocalT);
 
-// Top width dimension
-const topDimY = centerY - scaledHeight / 2 - 30 - scaledBend * bendFactor;
-drawArrow(ctx, topPoints[0].x, topDimY, topPoints[numPoints - 1].x, topDimY, 8);
-drawArrow(ctx, topPoints[numPoints - 1].x, topDimY, topPoints[0].x, topDimY, 8);
-ctx.fillText(w.toFixed(2) + " " + units, centerX, topDimY - 12);
+    const bottomX1 = lerp(bottomPoints[segmentIndex].x, bottomPoints[segmentIndex + 1].x, localT);
+    const bottomY1 = lerp(bottomPoints[segmentIndex].y, bottomPoints[segmentIndex + 1].y, localT);
 
-// Left height dimension
-const heightDimX = topPoints[0].x - 30;
-drawArrow(ctx, heightDimX, topPoints[0].y, heightDimX, bottomPoints[0].y, 8);
-drawArrow(ctx, heightDimX, bottomPoints[0].y, heightDimX, topPoints[0].y, 8);
-ctx.save();
-ctx.translate(heightDimX - 8, (topPoints[0].y + bottomPoints[0].y) / 2);
-ctx.rotate(-Math.PI / 2);
-ctx.fillText(h.toFixed(2) + " " + units, 0, 0);
-ctx.restore();
+    const sliceAngle = Math.atan2(topY2 - topY1, topX2 - topX1);
+    const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+    const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+    const degAngle = (sliceAngle * 180) / Math.PI;
 
-// Bend height dimension (rotated text)
-const bendDimX = centerX + scaledWidth / 2 + 30;
-const bendStartY = bottomPoints[0].y;
-const bendEndY = topPoints[Math.floor(numPoints / 2)].y;
-drawArrow(ctx, bendDimX, bendStartY, bendDimX, bendEndY, 8);
-drawArrow(ctx, bendDimX, bendEndY, bendDimX, bendStartY, 8);
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = sliceW;
+    tempCanvas.height = imgHeight;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.drawImage(currentImage, i * sliceW, 0, sliceW, imgHeight, 0, 0, sliceW, imgHeight);
+    const imgData = tempCanvas.toDataURL('image/png');
 
-const bendTextX = bendDimX + 12;
-const bendTextY = (bendStartY + bendEndY) / 2;
-ctx.save();
-ctx.translate(bendTextX, bendTextY);
-ctx.rotate(-Math.PI / 2); // Rotate text vertically
-ctx.fillText(bendHeightInput.toFixed(2) + " " + units, 0, 0);
-ctx.restore();
-
-  // Include or skip dimensions drawing based on mode, if needed
-}
-
-  // Helper function to calculate quadratic curve
-  function quadraticAt(p0, p1, p2, t) {
-    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
-  }
-}
-
-// Update the export button to use the new function for PNG export
-document.getElementById("export").addEventListener("click", () => {
-  // 1. Temporarily draw the shape without dimensions
-  drawKLDForExport();
-
-  // 2. Export canvas as PNG
-  const imgData = canvas.toDataURL("image/png");
-
-  // Get selected shape type
-  const diagramType = document.getElementById("diagramType").value;
-
-  // Decide filename based on selected shape
-  let fileName = "shape_" + Date.now() + ".png";
-  if (diagramType === "curveRectangle") {
-    fileName = "curveRectangle_" + Date.now() + ".png";
-  }else if(diagramType === "curveRectangle500"){
-    fileName = "curveRectangle500_" + Date.now() + ".png";
-  }else if(diagramType === "curveRectangle250"){
-    fileName = "curveRectangle250_" + Date.now() + ".png";
-  } else if (diagramType === "squareWithRadius") {
-    fileName = "square-radius_" + Date.now() + ".png";
-  }else if (diagramType === "squareWithRadius750") {
-    fileName = "Rectangle750_" + Date.now() + ".png";
-  } else if (diagramType === "square") {
-    fileName = "square_" + Date.now() + ".png";
-  }else if (diagramType === "sweetBox") {
-    fileName = "sweetBox_" + Date.now() + ".png";
-  }else if (diagramType === "sweetBox500") {
-    fileName = "sweetBox500_" + Date.now() + ".png";
-  }else if (diagramType === "sweetBox250") {
-    fileName = "sweetBox250_" + Date.now() + ".png";
-  }
-
-  // Create and trigger download
-  const link = document.createElement("a");
-  link.href = imgData;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  // 3. Restore canvas with full drawing including dimensions
-  drawKLD();
-});
-
-
-window.onload = () => {
-  loadStateFromLocalStorage();
-  resizeCanvas();
-  updateInputs();
-};
-
-window.addEventListener("DOMContentLoaded", () => {
-  // Set default shape
-  document.getElementById("shapeType").value = "round";
-
-  // Populate models for Round
-  updateModels();
-
-  // Select the first model and apply it
-  const modelSelect = document.getElementById("modelType");
-  if (modelSelect.options.length > 0) {
-    modelSelect.value = modelSelect.options[0].value;
-    applyModel();
-  }
-});
-
-document.getElementById("exportSvg").addEventListener("click", exportAsWarpedSVG);
-
-function exportAsWarpedSVG() {
-  const diagramType = document.getElementById("diagramType").value;
-  if (!currentImage) {
-    alert("Please upload an image first.");
-    return;
-  }
-
-  const units = DEFAULT_UNIT;
-  function toPx(value) { return value * unitToPx[units]; }
-
-  const svgWidth = canvas.clientWidth;
-  const svgHeight = canvas.clientHeight;
-  const margin = 60;
-  let svgSlices = "";
-  let svgShape = "";
-
-  if (diagramType.startsWith("curveRectangle")) {
-    // (same geometry as drawKLDForExport)
-    const w = Number(document.getElementById("topWidth").value);
-    const h = Number(document.getElementById("height").value);
-    const bottom = Number(document.getElementById("bottomWidth").value);
-
-    const wPx = toPx(w);
-    const hPx = toPx(h);
-    const bottomPx = toPx(bottom);
-
-    const scaleXFit = (svgWidth - 2 * margin) / Math.max(wPx, bottomPx);
-    const scaleYFit = (svgHeight - 2 * margin) / hPx;
-    const scale = Math.min(scaleXFit, scaleYFit, 1);
-
-    const scaledWidth = wPx * scale;
-    const scaledHeight = hPx * scale;
-    const scaledBottomWidth = bottomPx * scale;
-    const scaledMaxWidth = Math.max(wPx, bottomPx) * scale;
-
-    const centerX = (svgWidth - scaledMaxWidth) / 2;
-    const centerY = (svgHeight - scaledHeight) / 2 + 100;
-
-    const topLeft = { x: centerX + (scaledMaxWidth - scaledWidth) / 2, y: centerY };
-    const topRight = { x: centerX + (scaledMaxWidth + scaledWidth) / 2, y: centerY };
-    const bottomLeft = { x: centerX + (scaledMaxWidth - scaledBottomWidth) / 2, y: centerY + scaledHeight };
-    const bottomRight = { x: centerX + (scaledMaxWidth + scaledBottomWidth) / 2, y: bottomLeft.y };
-
-    const topHalf = wPx / 2;
-    const bottomHalf = bottomPx / 2;
-    const widthDiff = bottomHalf - topHalf;
-    const angleRad = Math.atan(widthDiff / hPx);
-
-    const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
-    const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
-
-    // SVG shape outline
-    svgShape = `
-      <path d="
-        M ${topLeft.x},${topLeft.y}
-        Q ${(topLeft.x + topRight.x) / 2},${topLeft.y - curveOffsetTop} ${topRight.x},${topRight.y}
-        L ${bottomRight.x},${bottomRight.y}
-        Q ${(bottomRight.x + bottomLeft.x) / 2},${bottomRight.y + curveOffsetBottom} ${bottomLeft.x},${bottomLeft.y}
-        Z
-      " fill="none" stroke="black"/>
+    svgSlices += `
+      <image xlink:href="${imgData}"
+             x="${topX1}" y="${topY1}"
+             width="${sliceWidth + 0.8}" height="${sliceHeight}"
+             preserveAspectRatio="none"
+             transform="rotate(${degAngle.toFixed(2)},${topX1},${topY1})" />
     `;
-
-    // Now slice the image
-    const imgWidth = currentImage.width;
-    const imgHeight = currentImage.height;
-    const sliceCount = 1000; // keep smaller than canvas for SVG size
-    const sliceW = imgWidth / sliceCount;
-
-    for (let i = 0; i < sliceCount; i++) {
-      const sx = i * sliceW;
-      const sw = sliceW;
-
-      // Compute mapping of slice top/bottom (like canvas)
-      const t1 = i / sliceCount;
-      const t2 = (i + 1) / sliceCount;
-
-      const topX1 = topLeft.x + (topRight.x - topLeft.x) * t1;
-      const topY1 = quadraticAt(topLeft.y, topLeft.y - curveOffsetTop, topRight.y, t1);
-      const topX2 = topLeft.x + (topRight.x - topLeft.x) * t2;
-      const topY2 = quadraticAt(topLeft.y, topLeft.y - curveOffsetTop, topRight.y, t2);
-
-      const bottomX1 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t1;
-      const bottomY1 = quadraticAt(bottomLeft.y, bottomRight.y + curveOffsetBottom, bottomRight.y, t1);
-      const bottomX2 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t2;
-      const bottomY2 = quadraticAt(bottomLeft.y, bottomRight.y + curveOffsetBottom, bottomRight.y, t2);
-
-      // Approximate transform for slice
-      const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
-      const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
-      const angle = Math.atan2(topY2 - topY1, topX2 - topX1);
-
-      // Convert slice to base64
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = sw;
-      tempCanvas.height = imgHeight;
-      const tempCtx = tempCanvas.getContext("2d");
-      tempCtx.drawImage(currentImage, sx, 0, sw, imgHeight, 0, 0, sw, imgHeight);
-      const imgData = tempCanvas.toDataURL("image/png");
-
-      // Add <image> slice with transform
-      svgSlices += `
-        <image href="${imgData}"
-               x="${topX1}" y="${topY1}"
-               width="${sliceWidth}"
-               height="${sliceHeight}"
-               transform="rotate(${(angle * 180 / Math.PI).toFixed(2)},${topX1},${topY1})"
-               clip-path="url(#clipPath)"/>
-      `;
-    }
   }
 
-  // Wrap final SVG
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">
+    <svg xmlns="http://www.w3.org/2000/svg" 
+         xmlns:xlink="http://www.w3.org/1999/xlink" 
+         width="${svgWidth}" height="${svgHeight}">
       <defs>
         <clipPath id="clipPath">
-          ${svgShape}
+          <path d="${pathData}" />
         </clipPath>
       </defs>
-      ${svgSlices}
-      ${svgShape}
+      <g clip-path="url(#clipPath)">
+        ${svgSlices}
+      </g>
+      <path d="${pathData}" fill="none" stroke="black" stroke-width="1.2"/>
     </svg>
   `;
 
-  // Download
-  const blob = new Blob([svg], { type: "image/svg+xml" });
-  const link = document.createElement("a");
+  const blob = new Blob([svg], { type: 'image/svg+xml' });
+  const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = "warped_shape_" + Date.now() + ".svg";
-  link.click();
-
-  function quadraticAt(p0, p1, p2, t) {
-    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  
+  const diagramType = document.getElementById("diagramType").value;
+  let fileName = `sweetbox_${Date.now()}.svg`;
+  if (diagramType === "sweetBox250") {
+    fileName = `sweetBox250_${Date.now()}.svg`;
+  } else if (diagramType === "sweetBox500") {
+    fileName = `sweetBox500_${Date.now()}.svg`;
   }
+  
+  link.download = fileName;
+  link.click();
 }
-

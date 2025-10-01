@@ -125,15 +125,16 @@
       </div>
 
       <!-- Upload + Export -->
-      <label class="file-upload-label" for="imageUpload">
-  <input type="file" id="imageUpload" accept="image/*" />
-  <small id="uploadText">Drag and drop file here or <span>Browse</span></small><br/>
-  <small>1080 x 720</small>
-</label>
+      <div id="dropArea">
+        <label class="file-upload-label" for="imageUpload">
+          <input type="file" id="imageUpload" accept="image/*" />
+          <small id="uploadText">Drag and drop file here or <span>Browse</span></small><br/>
+          <small id="dimention" style="color: gray;"></small>
+        </label>
+        <small id="imgerror"></small>
+      </div>
 
-
-
-      <button class="export" id="export">Export</button>
+      <button class="export" id="export">Export PNG</button>
       <button class="export" id="exportSvg">Export SVG</button>
     </div>
 
