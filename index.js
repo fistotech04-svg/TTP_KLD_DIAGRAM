@@ -205,7 +205,7 @@ function updateModels() {
       { value: "curveRectangle750", label: "750 ml Round" },
       { value: "curveRectangle1000", label: "1000 ml Round" },
     ];
-  } else if (shape === "roundSquare") {
+  } else if (shape === "round_Square") {
     models = [
       // { value: "squareWithRadius", label: "Custom Round Square" },
       { value: "curveRectangle500ml_square", label: "500 ml" },
@@ -390,7 +390,7 @@ function updateInputs() {
   // Set default values for squareWithRadius750
   if (diagramType === "square") {
     document.getElementById("sqWidthOnly").value = 200;
-    document.getElementById("sqHeightOnly").value = 200;
+    document.getElementById("sqHeightOnly").value = 160;
   } else if (diagramType === "square750") {
     document.getElementById("sqWidthOnly").value = 162.5;
     document.getElementById("sqHeightOnly").value = 108.6;
@@ -1923,30 +1923,12 @@ document.getElementById("export").addEventListener("click", () => {
   // 2. Export canvas as PNG
   const imgData = canvas.toDataURL("image/png");
 
-  // Get selected shape type
-  const diagramType = document.getElementById("diagramType").value;
-
-  // Decide filename based on selected shape
-  let fileName = "shape_" + Date.now() + ".png";
-  if (diagramType === "curveRectangle") {
-    fileName = "curveRectangle_" + Date.now() + ".png";
-  } else if (diagramType === "curveRectangle500") {
-    fileName = "curveRectangle500_" + Date.now() + ".png";
-  } else if (diagramType === "curveRectangle250") {
-    fileName = "curveRectangle250_" + Date.now() + ".png";
-  } else if (diagramType === "squareWithRadius") {
-    fileName = "square-radius_" + Date.now() + ".png";
-  } else if (diagramType === "squareWithRadius750") {
-    fileName = "Rectangle750_" + Date.now() + ".png";
-  } else if (diagramType === "square") {
-    fileName = "square_" + Date.now() + ".png";
-  } else if (diagramType === "sweetBox") {
-    fileName = "sweetBox_" + Date.now() + ".png";
-  } else if (diagramType === "sweetBox500") {
-    fileName = "sweetBox500_" + Date.now() + ".png";
-  } else if (diagramType === "sweetBox250") {
-    fileName = "sweetBox250_" + Date.now() + ".png";
-  }
+  // Get shape type and model label
+  const shapeType = document.getElementById("shapeType").value;
+  const modelLabel = getModelLabel().replace(/\s+/g, '_');
+  
+  // Create filename in format: ShapeType_ModelLabel.png
+  const fileName = `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1).toLowerCase()}_${modelLabel}.png`;
 
   // Create and trigger download
   const link = document.createElement("a");
@@ -1994,12 +1976,20 @@ document
     exportSweetBoxAsSVG();
   } else if (
     diagramType.startsWith("curveRectangle")
-  ) {
+  ){
     exportAsWarpedSVG();
   }else if(diagramType === "squareWithRadius750"){
-    exportRectangleRadiusAsSVG()
+    exportRectangleRadiusAsSVG();
+  }else if(diagramType === "square"){
+    exportRectangleAsSVG();
   }
   });
+
+function getModelLabel() {
+  const modelSelect = document.getElementById("modelType");
+  const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+  return selectedOption.textContent || "custom";
+}
 
 function exportRectangleAsSVG() {
   if (!currentImage) {
@@ -2033,43 +2023,62 @@ function exportRectangleAsSVG() {
   // SVG rectangle path string
   const svgShape = `<rect x="${x}" y="${y}" width="${scaledWidth}" height="${scaledHeight}" fill="none" stroke="black"/>`;
 
-  // Image slices as rectangular slices (simple warp)
+  // Create composite canvas with slices to remove gaps
   const sliceCount = 2000;
   const imgWidth = currentImage.width;
   const imgHeight = currentImage.height;
   const sliceW = imgWidth / sliceCount;
+  const overlapFactor = 2; // Add 2% overlap to eliminate gaps
 
-  let svgSlices = '';
+  const compositeCanvas = document.createElement('canvas');
+  compositeCanvas.width = svgWidth * 2; // Double resolution for better quality
+  compositeCanvas.height = svgHeight * 2;
+  const compositeCtx = compositeCanvas.getContext('2d');
+  compositeCtx.imageSmoothingEnabled = true; // Enable smoothing for better quality
+  compositeCtx.imageSmoothingQuality = 'high'; // Use high quality smoothing
+  compositeCtx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height); // Clear to transparent
+  compositeCtx.scale(2, 2); // Scale context to match doubled canvas size
+
+  // Draw all slices onto composite canvas
   for (let i = 0; i < sliceCount; i++) {
     const sx = i * sliceW;
 
-    // Calculate slice width in SVG
-    const sliceWidth = scaledWidth / sliceCount;
+    const sliceWidth = (scaledWidth / sliceCount) * overlapFactor;
     const sliceHeight = scaledHeight;
 
-    const sliceX = x + i * sliceWidth;
+    const sliceX = x + i * (scaledWidth / sliceCount);
     const sliceY = y;
 
-    // Create temp canvas slice image
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = sliceW;
     tempCanvas.height = imgHeight;
     const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.imageSmoothingEnabled = true;
+    tempCtx.imageSmoothingQuality = 'high';
     tempCtx.drawImage(currentImage, sx, 0, sliceW, imgHeight, 0, 0, sliceW, imgHeight);
-    const imgData = tempCanvas.toDataURL('image/png');
 
-    // Append SVG image slice
-    svgSlices += `
-      <image xlink:href="${imgData}" x="${sliceX}" y="${sliceY}" width="${sliceWidth}" height="${sliceHeight}" />
-    `;
+    // Draw slice onto composite canvas
+    compositeCtx.drawImage(tempCanvas, sliceX, sliceY, sliceWidth, sliceHeight);
   }
 
-  // Compose full SVG markup
+  // Convert composite canvas to single image with high quality
+  const compositeImageData = compositeCanvas.toDataURL('image/png', 1.0);
+
+  // Compose full SVG markup with single image
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" 
          xmlns:xlink="http://www.w3.org/1999/xlink"
          width="${svgWidth}" height="${svgHeight}">
-      ${svgSlices}
+      <defs>
+        <clipPath id="clipPath">
+          ${svgShape}
+        </clipPath>
+      </defs>
+      <image xlink:href="${compositeImageData}"
+             x="0" y="0"
+             width="${svgWidth}"
+             height="${svgHeight}"
+             preserveAspectRatio="none"/>
       ${svgShape}
     </svg>
   `;
@@ -2078,8 +2087,13 @@ function exportRectangleAsSVG() {
   const blob = new Blob([svg], {type: 'image/svg+xml'});
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `rectangle_${Date.now()}.svg`;
+  
+  const shapeType = document.getElementById("shapeType").value;
+  const modelLabel = getModelLabel().replace(/\s+/g, '_'); // Replace spaces with underscores
+  link.download = `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1).toLowerCase()}_${modelLabel}.svg`;
   link.click();
+
+  console.log("Generated Rectangle SVG with single composite image");
 }
 
 function exportRectangleRadiusAsSVG() {
@@ -2125,10 +2139,19 @@ function exportRectangleRadiusAsSVG() {
   const imgWidth = currentImage.width;
   const imgHeight = currentImage.height;
   const sliceW = imgWidth / sliceCount;
+  const overlapFactor = 2;
 
-  const overlapFactor = 2; // add 2% overlap to remove white gap
+  // Create composite canvas with higher resolution
+  const compositeCanvas = document.createElement('canvas');
+  compositeCanvas.width = svgWidth * 2; // Double resolution for better quality
+  compositeCanvas.height = svgHeight * 2;
+  const compositeCtx = compositeCanvas.getContext('2d');
+  compositeCtx.imageSmoothingEnabled = true; // Enable smoothing for better quality
+  compositeCtx.imageSmoothingQuality = 'high'; // Use high quality smoothing
+  compositeCtx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height); // Clear to transparent
+  compositeCtx.scale(2, 2); // Scale context to match doubled canvas size
 
-  let svgSlices = '';
+  // Draw all slices onto the composite canvas
   for (let i = 0; i < sliceCount; i++) {
     const sx = i * sliceW;
 
@@ -2142,7 +2165,8 @@ function exportRectangleRadiusAsSVG() {
     tempCanvas.width = sliceW;
     tempCanvas.height = imgHeight;
     const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.imageSmoothingEnabled = false; // prevent blur
+    tempCtx.imageSmoothingEnabled = true;
+    tempCtx.imageSmoothingQuality = 'high';
     tempCtx.drawImage(
       currentImage,
       sx,
@@ -2154,29 +2178,41 @@ function exportRectangleRadiusAsSVG() {
       sliceW,
       imgHeight
     );
-    const imgData = tempCanvas.toDataURL('image/png');
 
-    svgSlices += `
-      <image xlink:href="${imgData}" 
-             x="${sliceX}" y="${sliceY}" 
-             width="${sliceWidth}" height="${sliceHeight}" 
-             preserveAspectRatio="none" />
-    `;
+    // Draw slice onto composite canvas
+    compositeCtx.drawImage(tempCanvas, sliceX, sliceY, sliceWidth, sliceHeight);
   }
 
+  // Convert composite canvas to single image with high quality
+  const compositeImageData = compositeCanvas.toDataURL('image/png', 1.0);
+
+  // Create SVG with single image
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" 
        xmlns:xlink="http://www.w3.org/1999/xlink"
        width="${svgWidth}" height="${svgHeight}">
-    ${svgSlices}
+    <defs>
+      <clipPath id="clipPath">
+        ${svgShape}
+      </clipPath>
+    </defs>
+    <image xlink:href="${compositeImageData}" 
+           x="0" y="0" 
+           width="${svgWidth}" height="${svgHeight}" 
+           preserveAspectRatio="none" />
     ${svgShape}
   </svg>`;
 
   const blob = new Blob([svg], { type: 'image/svg+xml' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `rectangle_${Date.now()}.svg`;
+  
+  const shapeType = document.getElementById("shapeType").value;
+  const modelLabel = getModelLabel().replace(/\s+/g, '_');
+  link.download = `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1).toLowerCase()}_${modelLabel}.svg`;
   link.click();
+
+  console.log("Generated SVG with single composite image");
 }
 
 
@@ -2197,8 +2233,10 @@ function exportAsWarpedSVG() {
   const svgWidth = canvas.clientWidth;
   const svgHeight = canvas.clientHeight;
   const margin = 60;
-  let svgSlices = "";
-  let svgShape = "";
+
+  // precision for Illustrator bugs
+  const SVG_PRECISION = 3; 
+  const round = (val) => Number(val.toFixed(SVG_PRECISION));
 
   if (
     diagramType === "curveRectangle500" ||
@@ -2226,7 +2264,7 @@ function exportAsWarpedSVG() {
     const scaledMaxWidth = Math.max(wPx, bottomPx) * scale;
 
     const centerX = (svgWidth - scaledMaxWidth) / 2;
-    const centerY = (svgHeight - scaledHeight) / 2 + 100;
+    const centerY = (svgHeight - scaledHeight) / 2;
 
     const topLeft = {
       x: centerX + (scaledMaxWidth - scaledWidth) / 2,
@@ -2253,25 +2291,27 @@ function exportAsWarpedSVG() {
     const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
     const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
 
-    svgShape = `
-      <path d="
-        M ${topLeft.x},${topLeft.y}
-        Q ${(topLeft.x + topRight.x) / 2},${topLeft.y - curveOffsetTop} ${topRight.x},${topRight.y}
-        L ${bottomRight.x},${bottomRight.y}
-        Q ${(bottomRight.x + bottomLeft.x) / 2},${bottomRight.y + curveOffsetBottom} ${bottomLeft.x},${bottomLeft.y}
-        Z
-      " fill="none" stroke="black"/>
-    `;
-
-    // Increase slice count for tighter slices
-    const sliceCount = 2000;
+    // -------------------
+    // Slice + warped outline
+    // -------------------
+    const sliceCount = 1000;
     const imgWidth = currentImage.width;
     const imgHeight = currentImage.height;
     const sliceW = imgWidth / sliceCount;
+    const overlapFactor = 1.5;
 
-    const overlapFactor = 1.7; // add 2% overlap
+    const compositeCanvas = document.createElement("canvas");
+    compositeCanvas.width = svgWidth * 2;
+    compositeCanvas.height = svgHeight * 2;
+    const compositeCtx = compositeCanvas.getContext("2d");
+    compositeCtx.imageSmoothingEnabled = true;
+    compositeCtx.imageSmoothingQuality = "high";
+    compositeCtx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height);
+    compositeCtx.scale(2, 2);
 
-    svgSlices = "";
+    let topPoints = [];
+    let bottomPoints = [];
+
     for (let i = 0; i < sliceCount; i++) {
       const sx = i * sliceW;
       const t1 = i / sliceCount;
@@ -2307,19 +2347,28 @@ function exportAsWarpedSVG() {
         t2
       );
 
+      // collect outline points
+      if (i === 0) {
+        topPoints.push({ x: topX1, y: topY1 });
+        bottomPoints.push({ x: bottomX1, y: bottomY1 });
+      }
+      topPoints.push({ x: topX2, y: topY2 });
+      bottomPoints.push({ x: bottomX2, y: bottomY2 });
+
       const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1) * overlapFactor;
       const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
 
       const angle =
         (Math.atan2(topY2 - topY1, topX2 - topX1) +
           Math.atan2(bottomY2 - bottomY1, bottomX2 - bottomX1)) / 2;
-      const degAngle = (angle * 180) / Math.PI;
 
+      // slice canvas
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = sliceW;
       tempCanvas.height = imgHeight;
       const tempCtx = tempCanvas.getContext("2d");
-      tempCtx.imageSmoothingEnabled = false; // prevent blurring
+      tempCtx.imageSmoothingEnabled = true;
+      tempCtx.imageSmoothingQuality = "high";
       tempCtx.drawImage(
         currentImage,
         sx,
@@ -2331,45 +2380,54 @@ function exportAsWarpedSVG() {
         sliceW,
         imgHeight
       );
-      const imgData = tempCanvas.toDataURL("image/png");
 
-      svgSlices += `
-        <image xlink:href="${imgData}"
-               x="${topX1}" y="${topY1}"
-               width="${sliceWidth}"
-               height="${sliceHeight}"
-               transform="rotate(${degAngle.toFixed(3)},${topX1},${topY1})"
-               preserveAspectRatio="none"/>
-      `;
+      // draw slice
+      compositeCtx.save();
+      compositeCtx.translate(topX1, topY1);
+      compositeCtx.rotate(angle);
+      compositeCtx.drawImage(tempCanvas, 0, 0, sliceWidth, sliceHeight);
+      compositeCtx.restore();
     }
 
-    const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg"
-         xmlns:xlink="http://www.w3.org/1999/xlink"
-         width="${svgWidth}" height="${svgHeight}">
+    // build outline path from warped edges
+    let pathData = `M ${round(topPoints[0].x)},${round(topPoints[0].y)}`;
+    for (let i = 1; i < topPoints.length; i++) {
+      pathData += ` L ${round(topPoints[i].x)},${round(topPoints[i].y)}`;
+    }
+    for (let i = bottomPoints.length - 1; i >= 0; i--) {
+      pathData += ` L ${round(bottomPoints[i].x)},${round(bottomPoints[i].y)}`;
+    }
+    pathData += " Z";
+
+    const compositeImageData = compositeCanvas.toDataURL("image/png", 1.0);
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">
       <defs>
-        <clipPath id="clipPath">
-          ${svgShape}
+        <clipPath id="shapeClip">
+          <path d="${pathData}"/>
         </clipPath>
       </defs>
-      ${svgSlices}
-      ${svgShape}
-    </svg>
-  `;
+      <image href="${compositeImageData}" x="0" y="0" width="${svgWidth}" height="${svgHeight}" clip-path="url(#shapeClip)" preserveAspectRatio="none"/>
+      <path d="${pathData}" fill="none" stroke="black" stroke-width="1"/>
+    </svg>`;
 
     const blob = new Blob([svg], { type: "image/svg+xml" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "warped_shape_" + Date.now() + ".svg";
+    
+    const shapeType = document.getElementById("shapeType").value;
+    const modelLabel = getModelLabel().replace(/\s+/g, "_");
+    link.download = `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1).toLowerCase()}_${modelLabel}.svg`;
     link.click();
 
-    console.log("Generated SVG:", svg);
+    console.log("Generated SVG with warped outline");
 
     function quadraticAt(p0, p1, p2, t) {
       return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
     }
   }
 }
+
 
 
 function exportSweetBoxAsSVG() {
@@ -2449,17 +2507,26 @@ function exportSweetBoxAsSVG() {
   }
   pathData += ' Z';
 
-  // Slice image into warped pieces
-  const sliceCount = 1000;
+  // Create composite canvas with higher resolution
+  const sliceCount = 2500;
   const imgWidth = currentImage.width;
   const imgHeight = currentImage.height;
   const sliceW = imgWidth / sliceCount;
-  let svgSlices = '';
+
+  const compositeCanvas = document.createElement('canvas');
+  compositeCanvas.width = svgWidth * 2; // Double resolution for better quality
+  compositeCanvas.height = svgHeight * 2;
+  const compositeCtx = compositeCanvas.getContext('2d');
+  compositeCtx.imageSmoothingEnabled = true; // Enable smoothing for better quality
+  compositeCtx.imageSmoothingQuality = 'high'; // Use high quality smoothing
+  compositeCtx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height); // Clear to transparent
+  compositeCtx.scale(2, 2); // Scale context to match doubled canvas size
 
   function lerp(a, b, t) {
     return a + (b - a) * t;
   }
 
+  // Draw all slices onto the composite canvas
   for (let i = 0; i < sliceCount; i++) {
     const t = i / sliceCount;
     const nextT = (i + 1) / sliceCount;
@@ -2481,24 +2548,27 @@ function exportSweetBoxAsSVG() {
     const sliceAngle = Math.atan2(topY2 - topY1, topX2 - topX1);
     const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
     const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
-    const degAngle = (sliceAngle * 180) / Math.PI;
 
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = sliceW;
     tempCanvas.height = imgHeight;
     const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.imageSmoothingEnabled = true;
+    tempCtx.imageSmoothingQuality = 'high';
     tempCtx.drawImage(currentImage, i * sliceW, 0, sliceW, imgHeight, 0, 0, sliceW, imgHeight);
-    const imgData = tempCanvas.toDataURL('image/png');
 
-    svgSlices += `
-      <image xlink:href="${imgData}"
-             x="${topX1}" y="${topY1}"
-             width="${sliceWidth + 0.8}" height="${sliceHeight}"
-             preserveAspectRatio="none"
-             transform="rotate(${degAngle.toFixed(2)},${topX1},${topY1})" />
-    `;
+    // Draw slice onto composite canvas with transformation
+    compositeCtx.save();
+    compositeCtx.translate(topX1, topY1);
+    compositeCtx.rotate(sliceAngle);
+    compositeCtx.drawImage(tempCanvas, 0, 0, sliceWidth + 0.8, sliceHeight);
+    compositeCtx.restore();
   }
 
+  // Convert composite canvas to single image with high quality
+  const compositeImageData = compositeCanvas.toDataURL('image/png', 1.0);
+
+  // Create SVG with single image
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" 
          xmlns:xlink="http://www.w3.org/1999/xlink" 
@@ -2508,9 +2578,11 @@ function exportSweetBoxAsSVG() {
           <path d="${pathData}" />
         </clipPath>
       </defs>
-      <g clip-path="url(#clipPath)">
-        ${svgSlices}
-      </g>
+      <image xlink:href="${compositeImageData}"
+             x="0" y="0"
+             width="${svgWidth}"
+             height="${svgHeight}"
+             preserveAspectRatio="none"/>
       <path d="${pathData}" fill="none" stroke="black" stroke-width="1.2"/>
     </svg>
   `;
@@ -2519,14 +2591,10 @@ function exportSweetBoxAsSVG() {
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
   
-  const diagramType = document.getElementById("diagramType").value;
-  let fileName = `sweetbox_${Date.now()}.svg`;
-  if (diagramType === "sweetBox250") {
-    fileName = `sweetBox250_${Date.now()}.svg`;
-  } else if (diagramType === "sweetBox500") {
-    fileName = `sweetBox500_${Date.now()}.svg`;
-  }
-  
-  link.download = fileName;
+  const shapeType = document.getElementById("shapeType").value;
+  const modelLabel = getModelLabel().replace(/\s+/g, '_');
+  link.download = `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1).toLowerCase()}_${modelLabel}.svg`;
   link.click();
+
+  console.log("Generated Sweet Box SVG with single composite image");
 }
