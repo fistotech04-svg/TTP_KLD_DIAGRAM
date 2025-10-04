@@ -199,7 +199,6 @@ function updateModels() {
   let models = [];
   if (shape === "round") {
     models = [
-      // { value: "curveRectangle", label: "Custom Round" },
       { value: "curveRectangle500", label: "500 ml Round" },
       { value: "curveRectangle250", label: "250 ml Round" },
       { value: "curveRectangle750", label: "750 ml Round" },
@@ -207,7 +206,6 @@ function updateModels() {
     ];
   } else if (shape === "round_Square") {
     models = [
-      // { value: "squareWithRadius", label: "Custom Round Square" },
       { value: "curveRectangle500ml_square", label: "500 ml" },
       { value: "curveRectangle500g_square", label: "500 gms/450 ml Round" },
     ];
@@ -218,14 +216,13 @@ function updateModels() {
     ];
   } else if (shape === "sweetBox") {
     models = [
-      // { value: "sweetBox", label: "Custom Sweet Box" },
       { value: "sweetBox250", label: "250 SB" },
       { value: "sweetBox500", label: "500 SB" },
     ];
   } else if (shape === "teSweetBox") {
     models = [
-      { value: "sweetBox250", label: "TE 250 SB" },
-      { value: "sweetBox500", label: "TE 500 SB" },
+      { value: "teSweetBox250", label: "TE 250 SB" },
+      { value: "teSweetBox500", label: "TE 500 SB" },
     ];
   }
 
@@ -255,12 +252,29 @@ const modelDimensions = {
   squareWithRadius750: [1488, 992],
   sweetBox250: [467.83, 34.13],
   sweetBox500: [630.19, 34.12],
+  sweetBox250Top: [1488, 992],
+  sweetBox500Top: [1488, 992],
+  teSweetBox250: [467.83, 34.13],
+  teSweetBox500: [630.19, 34.12],
+  teSweetBox250Top: [1488, 992],
+  teSweetBox500Top: [1488, 992]
 };
 
 function updateDimensionText() {
   const model = document.getElementById("modelType").value;
+  const orientation = document.querySelector('input[name="sweetBoxSide"]:checked')?.value || "bottom";
   const dimentionEl = document.getElementById("dimention");
-  const dim = modelDimensions[model];
+  
+  let lookupKey = model;
+  
+  // Adjust lookup key for top orientation
+  if ((model === "sweetBox250" || model === "sweetBox500" || 
+       model === "teSweetBox250" || model === "teSweetBox500") && 
+      orientation === "top") {
+    lookupKey = model + "Top";
+  }
+  
+  const dim = modelDimensions[lookupKey];
   if (dim && dim.length === 2) {
     dimentionEl.textContent = `${dim[0]}px x ${dim[1]}px`;
   } else {
@@ -293,6 +307,13 @@ document.getElementById("modelType").addEventListener("change", () => {
   imgError.style.display = "none";
 });
 
+document.getElementById("sweetBoxOrientation").addEventListener("change",()=>{
+  applyModel();
+  updateDimensionText();
+  clearUploadedImage(); // Clear image on model change
+  imgError.style.display = "none";
+});
+
 function applyModel() {
   const model = document.getElementById("modelType").value;
   document.getElementById("diagramType").value = model; // use existing diagramType logic
@@ -302,6 +323,29 @@ function applyModel() {
 
 function updateInputs() {
   const diagramType = document.getElementById("diagramType").value;
+  const orientation = document.querySelector('input[name="sweetBoxSide"]:checked')?.value || "bottom";
+
+  // Toggle sweetBox orientation radio for both sweetBox and teSweetBox
+  const showSweetOrientation =
+    diagramType === "sweetBox" ||
+    diagramType === "sweetBox250" ||
+    diagramType === "sweetBox500" ||
+    diagramType === "teSweetBox250" ||
+    diagramType === "teSweetBox500";
+  
+  let oreo = document.getElementById("sweetBoxOrientation");
+
+  oreo.style.display = showSweetOrientation
+    ? "flex"
+    : "none";
+  oreo.style.flexDirection = "column";
+  oreo.style.gap = "10px";
+
+  // Determine which input group to show based on orientation
+  const isBottomOrientation = orientation === "bottom";
+  const isSweetBoxType = diagramType === "sweetBox" || diagramType === "sweetBox250" || 
+                         diagramType === "sweetBox500" || diagramType === "teSweetBox250" || 
+                         diagramType === "teSweetBox500";
 
   // Toggle active class for input groups based on selection
   document
@@ -320,18 +364,17 @@ function updateInputs() {
     .getElementById("sweetBoxInputs")
     .classList.toggle(
       "active",
-      diagramType === "sweetBox" ||
-        diagramType === "sweetBox250" ||
-        diagramType === "sweetBox500"
+      isSweetBoxType && isBottomOrientation
     );
 
   document
     .getElementById("squareRadiusInputs")
-    .classList.toggle("active", diagramType === "squareWithRadius" || diagramType === "squareWithRadius750");
-
-  // document
-  //   .getElementById("squareWithRadius750")
-  //   .classList.toggle("active", diagramType === "squareWithRadius750");
+    .classList.toggle(
+      "active", 
+      diagramType === "squareWithRadius" || 
+      diagramType === "squareWithRadius750" ||
+      (isSweetBoxType && !isBottomOrientation)
+    );
 
   document
     .getElementById("squareInputs")
@@ -367,43 +410,12 @@ function updateInputs() {
     document.getElementById("height").value = 98.853;
   }
 
-  if (diagramType === "sweetBox250") {
-    document.getElementById("sweetWidth").value = 467.83;
-    document.getElementById("sweetHeight").value = 34.13;
-    document.getElementById("sweetBend").value = 61.98;
-  } else if (diagramType === "sweetBox500") {
-    document.getElementById("sweetWidth").value = 630.19;
-    document.getElementById("sweetHeight").value = 34.12;
-    document.getElementById("sweetBend").value = 71.61;
-  }
-
-  if (diagramType === "sweetBox250" || diagramType === "sweetBox500") {
-    document.getElementById("sweetWidth").disabled = true;
-    document.getElementById("sweetHeight").disabled = true;
-    document.getElementById("sweetBend").disabled = true;
-  } else {
-    document.getElementById("sweetWidth").disabled = false;
-    document.getElementById("sweetHeight").disabled = false;
-    document.getElementById("sweetBend").disabled = false;
-  }
-
-  // Set default values for squareWithRadius750
   if (diagramType === "square") {
     document.getElementById("sqWidthOnly").value = 200;
     document.getElementById("sqHeightOnly").value = 160;
   } else if (diagramType === "square750") {
     document.getElementById("sqWidthOnly").value = 162.5;
     document.getElementById("sqHeightOnly").value = 108.6;
-  }
-
-  if (diagramType === "square" || diagramType === "square750") {
-    // Disable inputs to prevent user editing default values
-    document.getElementById("sqWidthOnly").disabled = true;
-    document.getElementById("sqHeightOnly").disabled = true;
-  } else {
-    // Enable inputs for other shapes
-    document.getElementById("sqWidthOnly").disabled = false;
-    document.getElementById("sqHeightOnly").disabled = false;
   }
 
   // Set default values for squareWithRadius750
@@ -413,19 +425,85 @@ function updateInputs() {
     document.getElementById("radius").value = 0;
   }
 
-  if (diagramType === "squareWithRadius750") {
-    // Disable inputs to prevent user editing default values
+  // Set values based on diagram type and orientation
+  if (diagramType === "sweetBox250") {
+    if (isBottomOrientation) {
+      document.getElementById("sweetWidth").value = 467.83;
+      document.getElementById("sweetHeight").value = 34.13;
+      document.getElementById("sweetBend").value = 61.98;
+    } else {
+      // Different values for sweetBox250 top
+      document.getElementById("sqWidth").value = 150;
+      document.getElementById("sqHeight").value = 100;
+      document.getElementById("radius").value = 8;
+    }
+  } else if (diagramType === "sweetBox500") {
+    if (isBottomOrientation) {
+      document.getElementById("sweetWidth").value = 630.19;
+      document.getElementById("sweetHeight").value = 34.12;
+      document.getElementById("sweetBend").value = 71.61;
+    } else {
+      // Different values for sweetBox500 top
+      document.getElementById("sqWidth").value = 180;
+      document.getElementById("sqHeight").value = 120;
+      document.getElementById("radius").value = 10;
+    }
+  } else if (diagramType === "teSweetBox250") {
+    if (isBottomOrientation) {
+      document.getElementById("sweetWidth").value = 467.83;
+      document.getElementById("sweetHeight").value = 34.13;
+      document.getElementById("sweetBend").value = 61.98;
+    } else {
+      // Different values for teSweetBox250 top
+      document.getElementById("sqWidth").value = 155;
+      document.getElementById("sqHeight").value = 105;
+      document.getElementById("radius").value = 12;
+    }
+  } else if (diagramType === "teSweetBox500") {
+    if (isBottomOrientation) {
+      document.getElementById("sweetWidth").value = 630.19;
+      document.getElementById("sweetHeight").value = 34.12;
+      document.getElementById("sweetBend").value = 71.61;
+    } else {
+      // Different values for teSweetBox500 top
+      document.getElementById("sqWidth").value = 185;
+      document.getElementById("sqHeight").value = 125;
+      document.getElementById("radius").value = 15;
+    }
+  }
+
+  // Disable/enable sweet box inputs
+  if (isSweetBoxType && isBottomOrientation) {
+    document.getElementById("sweetWidth").disabled = true;
+    document.getElementById("sweetHeight").disabled = true;
+    document.getElementById("sweetBend").disabled = true;
+  } else {
+    document.getElementById("sweetWidth").disabled = false;
+    document.getElementById("sweetHeight").disabled = false;
+    document.getElementById("sweetBend").disabled = false;
+  }
+
+  // Disable/enable square inputs
+  if (diagramType === "square" || diagramType === "square750") {
+    document.getElementById("sqWidthOnly").disabled = true;
+    document.getElementById("sqHeightOnly").disabled = true;
+  } else {
+    document.getElementById("sqWidthOnly").disabled = false;
+    document.getElementById("sqHeightOnly").disabled = false;
+  }
+
+  // Disable/enable square with radius inputs
+  if (diagramType === "squareWithRadius750" || (isSweetBoxType && !isBottomOrientation)) {
     document.getElementById("sqWidth").disabled = true;
     document.getElementById("sqHeight").disabled = true;
     document.getElementById("radius").disabled = true;
   } else {
-    // Enable inputs for other shapes
     document.getElementById("sqWidth").disabled = false;
     document.getElementById("sqHeight").disabled = false;
     document.getElementById("radius").disabled = false;
   }
 
-  // Disable inputs for curveRectangle variations
+  // Disable/enable curve rectangle inputs
   if (
     diagramType === "curveRectangle500" ||
     diagramType === "curveRectangle250" ||
@@ -460,8 +538,19 @@ function drawKLD() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const diagramType = document.getElementById("diagramType").value;
+  let diagramType = document.getElementById("diagramType").value;
+  const orientation = document.querySelector('input[name="sweetBoxSide"]:checked')?.value || "bottom";
   const units = DEFAULT_UNIT;
+
+  // Handle Sweet Box and TE Sweet Box orientation switching
+  if (diagramType === "sweetBox250" || diagramType === "sweetBox500" ||
+      diagramType === "teSweetBox250" || diagramType === "teSweetBox500") {
+    if (orientation === "top") {
+      // Use squareWithRadius logic for top view but don't change to 750
+      console.log("Top trigger")
+      diagramType = "squareWithRadius";
+    }
+  }
 
   function toPx(value) {
     return value * unitToPx[units];
@@ -482,248 +571,259 @@ function drawKLD() {
   const offset = 30; // 30px outside margin for all dimension lines
 
   if (
-    diagramType === "curveRectangle500" ||
-    diagramType === "curveRectangle250" ||
-    diagramType === "curveRectangle750" ||
-    diagramType === "curveRectangle1000" ||
-    diagramType === "curveRectangle500g_square" ||
-    diagramType === "curveRectangle500ml_square"
-  ) {
-    w = Number(document.getElementById("topWidth").value);
-    h = Number(document.getElementById("height").value);
-    bottom = Number(document.getElementById("bottomWidth").value);
+  diagramType === "curveRectangle500" ||
+  diagramType === "curveRectangle250" ||
+  diagramType === "curveRectangle750" ||
+  diagramType === "curveRectangle1000" ||
+  diagramType === "curveRectangle500g_square" ||
+  diagramType === "curveRectangle500ml_square"
+) {
+  w = Number(document.getElementById("topWidth").value);
+  h = Number(document.getElementById("height").value);
+  bottom = Number(document.getElementById("bottomWidth").value);
 
-    const wPx = toPx(w);
-    const hPx = toPx(h);
-    const bottomPx = toPx(bottom);
+  const wPx = toPx(w);
+  const hPx = toPx(h);
+  const bottomPx = toPx(bottom);
 
-    // Use clientWidth/Height for layout math!
-    const svgWidth = canvas.clientWidth;
-    const svgHeight = canvas.clientHeight;
+  // Use clientWidth/Height for layout math!
+  const svgWidth = canvas.clientWidth;
+  const svgHeight = canvas.clientHeight;
 
-    const scaleXFit = (svgWidth - 2 * margin) / Math.max(wPx, bottomPx);
-    const scaleYFit = (svgHeight - 2 * margin) / hPx;
-    scale = Math.min(scaleXFit, scaleYFit, 1);
+  const scaleXFit = (svgWidth - 2 * margin) / Math.max(wPx, bottomPx);
+  const scaleYFit = (svgHeight - 2 * margin) / hPx;
+  scale = Math.min(scaleXFit, scaleYFit, 1);
 
-    const scaledWidth = wPx * scale;
-    const scaledHeight = hPx * scale;
-    const scaledBottomWidth = bottomPx * scale;
-    const scaledMaxWidth = Math.max(wPx, bottomPx) * scale;
+  const scaledWidth = wPx * scale;
+  const scaledHeight = hPx * scale;
+  const scaledBottomWidth = bottomPx * scale;
+  const scaledMaxWidth = Math.max(wPx, bottomPx) * scale;
 
-    // === Top-left of the bounding box for the curve shape, centered on canvas
-    const centerX = (svgWidth - scaledMaxWidth) / 2;
-    const centerY = (svgHeight - scaledHeight) / 2 + 60; // auto vertical center
+  // === Top-left of the bounding box for the curve shape, centered on canvas
+  const centerX = (svgWidth - scaledMaxWidth) / 2;
+  const centerY = (svgHeight - scaledHeight) / 2 + 60; // auto vertical center
 
-    const topLeft = {
-      x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2),
-      y: Math.round(centerY),
-    };
-    const topRight = {
-      x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2),
-      y: Math.round(centerY),
-    };
-    const bottomLeft = {
-      x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2),
-      y: Math.round(centerY + scaledHeight),
-    };
-    const bottomRight = {
-      x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2),
-      y: bottomLeft.y,
-    };
+  const topLeft = {
+    x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2),
+    y: Math.round(centerY),
+  };
+  const topRight = {
+    x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2),
+    y: Math.round(centerY),
+  };
+  const bottomLeft = {
+    x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2),
+    y: Math.round(centerY + scaledHeight),
+  };
+  const bottomRight = {
+    x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2),
+    y: bottomLeft.y,
+  };
 
-    const topHalf = wPx / 2;
-    const bottomHalf = bottomPx / 2;
-    const widthDiff = bottomHalf - topHalf;
-    const angleRad = Math.atan(widthDiff / hPx);
+  const topHalf = wPx / 2;
+  const bottomHalf = bottomPx / 2;
+  const widthDiff = bottomHalf - topHalf;
+  const angleRad = Math.atan(widthDiff / hPx);
 
-    const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
-    const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
+  const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
+  const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
 
-    // === Clipped image fill ===
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(topLeft.x, topLeft.y);
-    ctx.quadraticCurveTo(
-      (topLeft.x + topRight.x) / 2,
-      topLeft.y - curveOffsetTop,
-      topRight.x,
-      topRight.y
-    );
-    ctx.lineTo(bottomRight.x, bottomRight.y);
-    ctx.quadraticCurveTo(
-      (bottomRight.x + bottomLeft.x) / 2,
-      bottomRight.y + curveOffsetBottom,
-      bottomLeft.x,
-      bottomLeft.y
-    );
-    ctx.closePath();
-    ctx.clip();
+  // === Maintain consistent height ===
+  const fixedHeight = hPx * scale; // Keep height constant, even with the curve
+  const adjustedCurveOffset = (fixedHeight - hPx * scale) / 2;
 
-    if (currentImage) {
-      const imgWidth = currentImage.width;
-      const imgHeight = currentImage.height;
-      const sliceCount = 2000;
-      const sliceW = imgWidth / sliceCount;
-      // ctx.imageSmoothingEnabled = false; // Turn off smoothing to reduce gaps
-      for (let i = 0; i < sliceCount; i++) {
-        const sx = i * sliceW;
-        const sw = sliceW;
-        const t1 = i / sliceCount;
-        const t2 = (i + 1) / sliceCount;
+  // Adjust top and bottom positions to maintain constant height
+  topLeft.y += adjustedCurveOffset;
+  topRight.y += adjustedCurveOffset;
+  bottomLeft.y -= adjustedCurveOffset;
+  bottomRight.y -= adjustedCurveOffset;
 
-        // Top edge points of slice
-        const topX1 = topLeft.x + (topRight.x - topLeft.x) * t1;
-        const topY1 = quadraticAt(
-          topLeft.y,
-          topLeft.y - curveOffsetTop,
-          topRight.y,
-          t1
-        );
-        const topX2 = topLeft.x + (topRight.x - topLeft.x) * t2;
-        const topY2 = quadraticAt(
-          topLeft.y,
-          topLeft.y - curveOffsetTop,
-          topRight.y,
-          t2
-        );
+  // === Clipped image fill ===
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(topLeft.x, topLeft.y);
+  ctx.quadraticCurveTo(
+    (topLeft.x + topRight.x) / 2,
+    topLeft.y - curveOffsetTop,
+    topRight.x,
+    topRight.y
+  );
+  ctx.lineTo(bottomRight.x, bottomRight.y);
+  ctx.quadraticCurveTo(
+    (bottomRight.x + bottomLeft.x) / 2,
+    bottomRight.y + curveOffsetBottom,
+    bottomLeft.x,
+    bottomLeft.y
+  );
+  ctx.closePath();
+  ctx.clip();
 
-        // Bottom edge points of slice
-        const bottomX1 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t1;
-        const bottomY1 = quadraticAt(
-          bottomLeft.y,
-          bottomRight.y + curveOffsetBottom,
-          bottomRight.y,
-          t1
-        );
-        const bottomX2 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t2;
-        const bottomY2 = quadraticAt(
-          bottomLeft.y,
-          bottomRight.y + curveOffsetBottom,
-          bottomRight.y,
-          t2
-        );
+  if (currentImage) {
+    const imgWidth = currentImage.width;
+    const imgHeight = currentImage.height;
+    const sliceCount = 2000;
+    const sliceW = imgWidth / sliceCount;
 
-        // Calculate angle of slice
-        const angleTop = Math.atan2(topY2 - topY1, topX2 - topX1);
-        const angleBottom = Math.atan2(
-          bottomY2 - bottomY1,
-          bottomX2 - bottomX1
-        );
-        // Average angle used for rotation
-        const angle = (angleTop + angleBottom) / 2;
+    for (let i = 0; i < sliceCount; i++) {
+      const sx = i * sliceW;
+      const sw = sliceW;
+      const t1 = i / sliceCount;
+      const t2 = (i + 1) / sliceCount;
 
-        // Width and height for drawImage
-        const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
-        const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+      // Top edge points of slice
+      const topX1 = topLeft.x + (topRight.x - topLeft.x) * t1;
+      const topY1 = quadraticAt(
+        topLeft.y,
+        topLeft.y - curveOffsetTop,
+        topRight.y,
+        t1
+      );
+      const topX2 = topLeft.x + (topRight.x - topLeft.x) * t2;
+      const topY2 = quadraticAt(
+        topLeft.y,
+        topLeft.y - curveOffsetTop,
+        topRight.y,
+        t2
+      );
 
-        // Position slice at top-left corner of slice rectangle
-        ctx.save();
-        ctx.translate(topX1, topY1);
-        ctx.rotate(angle);
+      // Bottom edge points of slice
+      const bottomX1 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t1;
+      const bottomY1 = quadraticAt(
+        bottomLeft.y,
+        bottomRight.y + curveOffsetBottom,
+        bottomRight.y,
+        t1
+      );
+      const bottomX2 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t2;
+      const bottomY2 = quadraticAt(
+        bottomLeft.y,
+        bottomRight.y + curveOffsetBottom,
+        bottomRight.y,
+        t2
+      );
 
-        // Stretch vertically to fit distance between top and bottom points
-        ctx.drawImage(
-          currentImage,
-          sx,
-          0,
-          sw,
-          imgHeight,
-          0,
-          0,
-          sliceWidth + 0.6,
-          sliceHeight
-        );
-        ctx.restore();
-      }
-      ctx.imageSmoothingEnabled = true; // Reset smoothing back on
-    } else {
-      ctx.fillStyle = "#eee";
-      ctx.fill();
+      // Calculate angle of slice
+      const angleTop = Math.atan2(topY2 - topY1, topX2 - topX1);
+      const angleBottom = Math.atan2(
+        bottomY2 - bottomY1,
+        bottomX2 - bottomX1
+      );
+      // Average angle used for rotation
+      const angle = (angleTop + angleBottom) / 2;
+
+      // Width and height for drawImage
+      const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+      const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+
+      // Position slice at top-left corner of slice rectangle
+      ctx.save();
+      ctx.translate(topX1, topY1);
+      ctx.rotate(angle);
+
+      // Stretch vertically to fit distance between top and bottom points
+      ctx.drawImage(
+        currentImage,
+        sx,
+        0,
+        sw,
+        imgHeight,
+        0,
+        0,
+        sliceWidth + 0.6,
+        sliceHeight
+      );
+      ctx.restore();
     }
-    ctx.restore();
+    ctx.imageSmoothingEnabled = true; // Reset smoothing back on
+  } else {
+    ctx.fillStyle = "#eee";
+    ctx.fill();
+  }
+  ctx.restore();
 
-    // === Outline ===
-    ctx.beginPath();
-    ctx.moveTo(topLeft.x, topLeft.y);
-    ctx.quadraticCurveTo(
-      (topLeft.x + topRight.x) / 2,
-      topLeft.y - curveOffsetTop,
-      topRight.x,
-      topRight.y
-    );
-    ctx.lineTo(bottomRight.x, bottomRight.y);
-    ctx.quadraticCurveTo(
-      (bottomRight.x + bottomLeft.x) / 2,
-      bottomRight.y + curveOffsetBottom,
-      bottomLeft.x,
-      bottomLeft.y
-    );
-    ctx.closePath();
-    ctx.lineWidth = Math.max(1, 1.2 * scale);
-    ctx.strokeStyle = "#222";
-    ctx.stroke();
+  // === Outline ===
+  ctx.beginPath();
+  ctx.moveTo(topLeft.x, topLeft.y);
+  ctx.quadraticCurveTo(
+    (topLeft.x + topRight.x) / 2,
+    topLeft.y - curveOffsetTop,
+    topRight.x,
+    topRight.y
+  );
+  ctx.lineTo(bottomRight.x, bottomRight.y);
+  ctx.quadraticCurveTo(
+    (bottomRight.x + bottomLeft.x) / 2,
+    bottomRight.y + curveOffsetBottom,
+    bottomLeft.x,
+    bottomLeft.y
+  );
+  ctx.closePath();
+  ctx.lineWidth = Math.max(1, 1.2 * scale);
+  ctx.strokeStyle = "#222";
+  ctx.stroke();
 
-    // === Dimension font scaling by unit ===
-    let fontSizeScale;
-    switch (units.toLowerCase()) {
-      case "mm":
-        fontSizeScale = 1.0;
-        break;
-      case "cm":
-        fontSizeScale = 1.2;
-        break;
-      case "inch":
-      case "in":
-        fontSizeScale = 1.5;
-        break;
-      case "ft":
-      case "feet":
-        fontSizeScale = 1.8;
-        break;
-      default:
-        fontSizeScale = 1.0;
-    }
+  // === Dimension font scaling by unit ===
+  let fontSizeScale;
+  switch (units.toLowerCase()) {
+    case "mm":
+      fontSizeScale = 1.0;
+      break;
+    case "cm":
+      fontSizeScale = 1.2;
+      break;
+    case "inch":
+    case "in":
+      fontSizeScale = 1.5;
+      break;
+    case "ft":
+    case "feet":
+      fontSizeScale = 1.8;
+      break;
+    default:
+      fontSizeScale = 1.0;
+  }
 
-    ctx.font = `${Math.max(12, 20 * scale * fontSizeScale)}px Arial`;
-    ctx.fillStyle = "blue";
-    ctx.strokeStyle = "blue";
-    ctx.lineWidth = Math.max(1, 1 * scale);
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+  ctx.font = `${Math.max(12, 20 * scale * fontSizeScale)}px Arial`;
+  ctx.fillStyle = "blue";
+  ctx.strokeStyle = "blue";
+  ctx.lineWidth = Math.max(1, 1 * scale);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
 
-    // === Dimension lines aligned to shape corners ===
-    const topDimY = topLeft.y - curveOffsetTop * 0.5 - offset;
-    drawArrow(ctx, topLeft.x, topDimY, topRight.x, topDimY, 8);
-    drawArrow(ctx, topRight.x, topDimY, topLeft.x, topDimY, 8);
-    ctx.fillText(
-      w.toFixed(2) + " " + units,
-      (topLeft.x + topRight.x) / 2,
-      topDimY - 12 * scale * fontSizeScale
-    );
+  // === Dimension lines aligned to shape corners ===
+  const topDimY = topLeft.y - curveOffsetTop * 0.5 - offset;
+  drawArrow(ctx, topLeft.x, topDimY, topRight.x, topDimY, 8);
+  drawArrow(ctx, topRight.x, topDimY, topLeft.x, topDimY, 8);
+  ctx.fillText(
+    w.toFixed(2) + " " + units,
+    (topLeft.x + topRight.x) / 2,
+    topDimY - 12 * scale * fontSizeScale
+  );
 
-    const bottomDimY = bottomLeft.y + offset;
-    drawArrow(ctx, bottomLeft.x, bottomDimY, bottomRight.x, bottomDimY, 8);
-    drawArrow(ctx, bottomRight.x, bottomDimY, bottomLeft.x, bottomDimY, 8);
-    ctx.fillText(
-      bottom.toFixed(2) + " " + units,
-      (bottomLeft.x + bottomRight.x) / 2,
-      bottomDimY + 16 * scale * fontSizeScale
-    );
+  const bottomDimY = bottomLeft.y + offset;
+  drawArrow(ctx, bottomLeft.x, bottomDimY, bottomRight.x, bottomDimY, 8);
+  drawArrow(ctx, bottomRight.x, bottomDimY, bottomLeft.x, bottomDimY, 8);
+  ctx.fillText(
+    bottom.toFixed(2) + " " + units,
+    (bottomLeft.x + bottomRight.x) / 2,
+    bottomDimY + 16 * scale * fontSizeScale
+  );
 
-    const heightDimX = topRight.x + offset;
-    drawArrow(ctx, heightDimX, topRight.y, heightDimX, bottomRight.y, 8);
-    drawArrow(ctx, heightDimX, bottomRight.y, heightDimX, topRight.y, 8);
-    ctx.save();
-    ctx.translate(heightDimX + 38 * scale, (topRight.y + bottomRight.y) / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText(h.toFixed(2) + " " + units, 0, 6 * scale * fontSizeScale);
-    ctx.restore();
+  const heightDimX = topRight.x + offset;
+  drawArrow(ctx, heightDimX, topRight.y, heightDimX, bottomRight.y, 8);
+  drawArrow(ctx, heightDimX, bottomRight.y, heightDimX, topRight.y, 8);
+  ctx.save();
+  ctx.translate(heightDimX + 38 * scale, (topRight.y + bottomRight.y) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(h.toFixed(2) + " " + units, 0, 6 * scale * fontSizeScale);
+  ctx.restore();
 
-    // Helper function
-    function quadraticAt(p0, p1, p2, t) {
-      return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
-    }
-  } else if (diagramType === "squareWithRadius" || diagramType === "squareWithRadius750") {
+  // Helper function
+  function quadraticAt(p0, p1, p2, t) {
+    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
+}
+ else if (diagramType === "squareWithRadius" || diagramType === "squareWithRadius750" || orientation === 'Top') {
     w = Number(document.getElementById("sqWidth").value);
     h = Number(document.getElementById("sqHeight").value);
     bottom = w;
@@ -987,10 +1087,10 @@ function drawKLD() {
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(h.toFixed(2) + " " + units, 0, 6);
     ctx.restore();
-  } else if (
-    diagramType === "sweetBox" ||
-    diagramType === "sweetBox500" ||
-    diagramType === "sweetBox250"
+  } else if (diagramType === "sweetBox500" ||
+  diagramType === "sweetBox250" ||
+  diagramType === "teSweetBox500" ||
+  diagramType === "teSweetBox250"
   ) {
     // Inputs
     const w = Number(document.getElementById("sweetWidth").value);
@@ -1334,8 +1434,19 @@ function drawKLDForExport() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const diagramType = document.getElementById("diagramType").value;
+  let diagramType = document.getElementById("diagramType").value;
+  const orientation = document.querySelector('input[name="sweetBoxSide"]:checked')?.value || "bottom";
   const units = DEFAULT_UNIT;
+
+  // Handle Sweet Box and TE Sweet Box orientation switching
+  if (diagramType === "sweetBox250" || diagramType === "sweetBox500" ||
+      diagramType === "teSweetBox250" || diagramType === "teSweetBox500") {
+    if (orientation === "top") {
+      // Use squareWithRadius logic for top view but don't change to 750
+      console.log("Top trigger")
+      diagramType = "squareWithRadius";
+    }
+  }
 
   function toPx(value) {
     return value * unitToPx[units];
@@ -1651,9 +1762,10 @@ function drawKLDForExport() {
     ctx.strokeStyle = "#222";
     ctx.stroke();
   } else if (
-    diagramType === "sweetBox" ||
     diagramType === "sweetBox500" ||
-    diagramType === "sweetBox250"
+  diagramType === "sweetBox250" ||
+  diagramType === "teSweetBox500" ||
+  diagramType === "teSweetBox250"
   ) {
     // Inputs
     const w = Number(document.getElementById("sweetWidth").value);
@@ -1967,22 +2079,31 @@ window.addEventListener("DOMContentLoaded", () => {
 document
   .getElementById("exportSvg")
   .addEventListener("click", ()=>{
-    const diagramType = document.getElementById("diagramType").value;
-    if (
-    diagramType === "sweetBox" || 
-    diagramType === "sweetBox500" || 
-    diagramType === "sweetBox250"
-  ) {
-    exportSweetBoxAsSVG();
-  } else if (
-    diagramType.startsWith("curveRectangle")
-  ){
-    exportAsWarpedSVG();
-  }else if(diagramType === "squareWithRadius750"){
-    exportRectangleRadiusAsSVG();
-  }else if(diagramType === "square"){
-    exportRectangleAsSVG();
-  }
+    let diagramType = document.getElementById("diagramType").value;
+    const orientation = document.querySelector('input[name="sweetBoxSide"]:checked')?.value || "bottom";
+    
+    // Handle Sweet Box and TE Sweet Box orientation for export
+    if ((diagramType === "sweetBox" || diagramType === "sweetBox500" || 
+         diagramType === "sweetBox250" || diagramType === "teSweetBox250" || 
+         diagramType === "teSweetBox500") && orientation === "top") {
+      exportRectangleRadiusAsSVG();
+    } else if (
+      diagramType === "sweetBox" || 
+      diagramType === "sweetBox500" || 
+      diagramType === "sweetBox250" ||
+      diagramType === "teSweetBox250" ||
+      diagramType === "teSweetBox500"
+    ) {
+      exportSweetBoxAsSVG();
+    } else if (
+      diagramType.startsWith("curveRectangle")
+    ){
+      exportAsWarpedSVG();
+    } else if(diagramType === "squareWithRadius750"){
+      exportRectangleRadiusAsSVG();
+    } else if(diagramType === "square"){
+      exportRectangleAsSVG();
+    }
   });
 
 function getModelLabel() {
@@ -2400,15 +2521,15 @@ function exportAsWarpedSVG() {
     pathData += " Z";
 
     const compositeImageData = compositeCanvas.toDataURL("image/png", 1.0);
-
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgWidth}" height="${svgHeight}">
+    // Use xlink:href for better Adobe Illustrator compatibility
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${svgWidth}" height="${svgHeight}">
       <defs>
         <clipPath id="shapeClip">
           <path d="${pathData}"/>
         </clipPath>
       </defs>
-      <image href="${compositeImageData}" x="0" y="0" width="${svgWidth}" height="${svgHeight}" clip-path="url(#shapeClip)" preserveAspectRatio="none"/>
-      <path d="${pathData}" fill="none" stroke="black" stroke-width="1"/>
+      <image xlink:href="${compositeImageData}" x="0" y="0" width="${svgWidth}" height="${svgHeight}" clip-path="url(#shapeClip)" preserveAspectRatio="none"/>
+      <path d="${pathData}" fill="none" stroke="black" stroke-width="1.2"/>
     </svg>`;
 
     const blob = new Blob([svg], { type: "image/svg+xml" });
@@ -2598,3 +2719,11 @@ function exportSweetBoxAsSVG() {
 
   console.log("Generated Sweet Box SVG with single composite image");
 }
+
+document.querySelectorAll('input[name="sweetBoxSide"]').forEach(radio => {
+  radio.addEventListener("change", () => {
+    updateInputs(); // Update input visibility first
+    updateDimensionText(); // Update dimension text
+    drawKLD();      // Then redraw
+  });
+});
