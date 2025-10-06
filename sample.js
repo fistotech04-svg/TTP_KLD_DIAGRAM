@@ -389,7 +389,7 @@ function updateInputs() {
     document.getElementById("bottomWidth").value = 244.65;
     document.getElementById("height").value = 75;
   } else if (diagramType === "curveRectangle250") {
-    document.getElementById("topWidth").value = 230.78360438;
+    document.getElementById("topWidth").value = 223.78360438;
     document.getElementById("bottomWidth").value = 184.4421;
     document.getElementById("height").value = 28.426912708;
   } else if (diagramType === "curveRectangle750") {
@@ -626,14 +626,9 @@ function drawKLD() {
 
   const angleRad = Math.atan(widthDiff / verticalHeight);
 
-  // Add a small factor to introduce a gentle bend
-  const bendFactor = 1;  // Adjust this factor for more or less bend
-  const randomFactorTop = 1 + (Math.random() * 0.02 - 0.01); // Random factor between 0.99 and 1.01
-  const randomFactorBottom = 1 + (Math.random() * 0.02 - 0.01); // Random factor between 0.99 and 1.01
-
-  // Calculate the curve offset for top and bottom to maintain consistent height with a slight bend
-  const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale * bendFactor * randomFactorTop;
-  const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale * bendFactor * randomFactorBottom;
+  // Now calculate the curve offset for top and bottom to maintain consistent height
+  const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
+  const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
 
   ctx.save();
   ctx.beginPath();

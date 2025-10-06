@@ -2,139 +2,150 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI to SVG Converter with CDN</title>
+  <title>Curved Label with auto angle</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f9f9f9;
-      padding: 20px;
-      max-width: 600px;
-      margin: 0 auto;
+      font-family: sans-serif;
+      padding: 2rem;
+      margin: 0;
+      box-sizing: border-box;
     }
-    h1 {
-      text-align: center;
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
     }
-    input[type="file"] {
-      display: block;
-      margin: 20px auto;
+    .controls label {
+      white-space: nowrap;
     }
-    #viewer {
-      margin-top: 20px;
-      text-align: center;
+    input {
+      width: 120px;
+      padding: 0.3rem;
     }
-    .message {
-      font-weight: bold;
-      margin-top: 10px;
-    }
-    .loading {
-      color: #0078d7;
-    }
-    .error {
-      color: #d32f2f;
-    }
-    .success {
-      color: #2e7d32;
-    }
-    .svg-container svg {
-      max-width: 100%;
-      height: auto;
+    svg {
       border: 1px solid #ccc;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      background: #f8f8f8;
+      display: block;
+      margin: auto;
+    }
+    path {
+      fill: #eee;
+      stroke: #333;
+      stroke-width: 2;
+    }
+    .warning {
+      color: red;
+      margin-top: 0.5rem;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>AI to SVG Converter</h1>
-  <input type="file" id="fileInput" accept=".ai" />
-  <div id="viewer">
-    <div class="message">Please upload an AI file.</div>
+
+  <h2>Curved Label Generator (auto angle from top/bottom widths & height)</h2>
+
+  <div class="controls">
+    <label>Inner Radius (mm): <input type="number" id="innerRadiusMm" value="183.19" step="0.01" /></label>
+    <label>Height (mm): <input type="number" id="heightMm" value="37.92" step="0.01" /></label>
+    <label>Top Width (mm): <input type="number" id="topWidthMm" value="295.91" step="0.01" /></label>
+    <label>Bottom Width (mm): <input type="number" id="bottomWidthMm" value="245.14" step="0.01" /></label>
+    <button onclick="draw()">Draw</button>
   </div>
 
-  <!-- ConvertAPI JS SDK CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/convertapi-js@1.0.8/lib/convertapi.min.js"></script>
+  <div id="warning" class="warning"></div>
+
+  <svg id="svg" width="800" height="600" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet"></svg>
+
   <script>
-    const viewer = document.getElementById('viewer');
-    const fileInput = document.getElementById('fileInput');
+    const mmToPx = mm => mm / 0.264583;
 
-    // Replace with your actual ConvertAPI secret key
-    const API_SECRET_KEY = 'your_api_token_here';
-
-    function showMessage(text, type = '') {
-      viewer.innerHTML = `<div class="message ${type}">${text}</div>`;
+    function polarToCartesian(cx, cy, r, angleDeg) {
+      const angleRad = (angleDeg - 90) * Math.PI / 180.0;
+      return {
+        x: cx + r * Math.cos(angleRad),
+        y: cy + r * Math.sin(angleRad)
+      };
     }
 
-    async function convertAItoSVG(file) {
-      try {
-        showMessage('Converting AI file, please wait...', 'loading');
+    function draw() {
+      const warningDiv = document.getElementById('warning');
+      warningDiv.textContent = '';
 
-        const convertApi = ConvertApi.auth(API_SECRET_KEY);
+      const innerRadiusMm = parseFloat(document.getElementById('innerRadiusMm').value);
+      const heightMm = parseFloat(document.getElementById('heightMm').value);
+      const topWidthMm = parseFloat(document.getElementById('topWidthMm').value);
+      const bottomWidthMm = parseFloat(document.getElementById('bottomWidthMm').value);
 
-        let params = convertApi.createParams();
-        params.add('File', file);
-
-        // Optional parameters (may be ignored for SVG)
-        params.add('MarginHorizontal', '1-10');
-        params.add('CropTo', 'BoundingBox');
-        params.add('ImageResolution', '150');
-        params.add('ImageWidth', '1920');
-        params.add('ImageHeight', '600');
-        params.add('ImageQuality', '95%');
-        params.add('ColorSpace', 'rgb');
-
-        let result = await convertApi.convert('ai', 'svg', params);
-        if (result.files && result.files.length > 0) {
-          const svgUrl = result.files[0].Url;
-
-          // Fetch the SVG text content
-          const response = await fetch(svgUrl);
-          const svgText = await response.text();
-
-          // Display SVG in viewer
-          viewer.innerHTML = '';
-          const svgContainer = document.createElement('div');
-          svgContainer.className = 'svg-container';
-          svgContainer.innerHTML = svgText;
-          viewer.appendChild(svgContainer);
-
-          // Show success message
-          const successMsg = document.createElement('div');
-          successMsg.className = 'message success';
-          successMsg.textContent = '✓ Successfully converted to SVG!';
-          viewer.appendChild(successMsg);
-
-          // Automatically trigger download
-          downloadSVG(svgText, file.name);
-        } else {
-          throw new Error('No files received from ConvertAPI.');
-        }
-      } catch (error) {
-        console.error(error);
-        showMessage(`Error: ${error.message}`, 'error');
+      if (innerRadiusMm <= 0 || heightMm <= 0 || topWidthMm <= 0 || bottomWidthMm <= 0) {
+        warningDiv.textContent = 'All inputs must be positive numbers.';
+        return;
       }
-    }
 
-    function downloadSVG(svgContent, originalFileName) {
-      const filename = originalFileName.replace(/\.ai$/i, '.svg');
-      const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
+      const outerRadiusMm = innerRadiusMm + heightMm;
 
-    fileInput.addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        convertAItoSVG(file);
-      } else {
-        showMessage('No file selected', 'error');
+      // Check ratio to validate if shape possible
+      const expectedRatio = outerRadiusMm / innerRadiusMm;
+      const inputRatio = topWidthMm / bottomWidthMm;
+
+      // Allow small tolerance
+      const tolerance = 0.02;
+
+      if (Math.abs(expectedRatio - inputRatio) > tolerance) {
+        warningDiv.textContent = 
+          `Warning: The ratio of topWidth/bottomWidth (${inputRatio.toFixed(3)}) ` +
+          `does not match outerRadius/innerRadius (${expectedRatio.toFixed(3)}). ` +
+          `Adjust widths or radii to form a valid shape.`;
       }
-    });
+
+      // Compute angle θ from topWidth and outerRadius:
+      // chord length = 2 * r * sin(θ/2) => θ = 2 * arcsin(chord/(2r))
+      if (topWidthMm > 2 * outerRadiusMm) {
+        warningDiv.textContent = 'Top width is too large for the given outer radius.';
+        return;
+      }
+
+      const angleRad = 2 * Math.asin(topWidthMm / (2 * outerRadiusMm));
+      const angleDeg = angleRad * 180 / Math.PI;
+
+      // Convert radii to pixels
+      const innerRadius = mmToPx(innerRadiusMm);
+      const outerRadius = mmToPx(outerRadiusMm);
+
+      const svg = document.getElementById("svg");
+      svg.innerHTML = "";
+
+      const width = svg.viewBox.baseVal.width;
+      const height = svg.viewBox.baseVal.height;
+      const cx = width / 2;
+      const cy = height / 2;
+
+      const startAngle = -angleDeg / 2;
+      const endAngle = angleDeg / 2;
+
+      const startOuter = polarToCartesian(cx, cy, outerRadius, startAngle);
+      const endOuter = polarToCartesian(cx, cy, outerRadius, endAngle);
+      const startInner = polarToCartesian(cx, cy, innerRadius, endAngle);
+      const endInner = polarToCartesian(cx, cy, innerRadius, startAngle);
+
+      const largeArcFlag = angleDeg > 180 ? 1 : 0;
+
+      const pathData = [
+        `M ${startOuter.x} ${startOuter.y}`,
+        `A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${endOuter.x} ${endOuter.y}`,
+        `L ${startInner.x} ${startInner.y}`,
+        `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${endInner.x} ${endInner.y}`,
+        `Z`
+      ].join(" ");
+
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", pathData);
+      svg.appendChild(path);
+    }
+
+    draw();
   </script>
+
 </body>
 </html>
