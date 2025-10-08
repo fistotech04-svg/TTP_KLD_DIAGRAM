@@ -199,8 +199,8 @@ function updateModels() {
   let models = [];
   if (shape === "round") {
     models = [
-      { value: "curveRectangle500", label: "500 ml Round" },
       { value: "curveRectangle250", label: "250 ml Round" },
+      { value: "curveRectangle500", label: "500 ml Round" },
       { value: "curveRectangle750", label: "750 ml Round" },
       { value: "curveRectangle1000", label: "1000 ml Round" },
     ];
@@ -391,7 +391,7 @@ function updateInputs() {
   } else if (diagramType === "curveRectangle250") {
     document.getElementById("topWidth").value = 295.91;
     document.getElementById("bottomWidth").value = 245.14;
-    document.getElementById("height").value = 35;
+    document.getElementById("height").value = 34;
   } else if (diagramType === "curveRectangle750") {
     document.getElementById("topWidth").value = 300.91;
     document.getElementById("bottomWidth").value = 245.14;
@@ -569,7 +569,7 @@ function drawKLD() {
 
   const offset = 30;
 
-  if (
+if (
   diagramType === "curveRectangle500" ||
   diagramType === "curveRectangle250" ||
   diagramType === "curveRectangle750" ||
@@ -589,7 +589,7 @@ function drawKLD() {
   const bottomHalf = bottomPx / 2;
   const widthDiff = bottomHalf - topHalf;
 
-  // Use the original height directly (no need for bendHeightFactor)
+  // Use the original height directly
   const verticalHeight = hPx;
 
   const svgWidth = canvas.clientWidth;
@@ -607,26 +607,38 @@ function drawKLD() {
   const centerX = (svgWidth - scaledMaxWidth) / 2;
   const centerY = (svgHeight - scaledHeight) / 2 + 60;
 
+  let angleInset = 0 * scale; // Keep the original angle for the slant
+  // --- END --- 
+
+  let cornerShift = 0 * scale;
+
+  if(diagramType === "curveRectangle250"){
+  angleInset = -30 * scale; // Keep the original angle for the slant
+  // --- END --- 
+  cornerShift = -50 * scale; // This will shift both top-left, top-right, bottom-left, and bottom-right inward
+  }
+
+  // Shifting the corners inward (top-left, top-right, bottom-left, bottom-right)
   const topLeft = {
-    x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2) + angleInset - cornerShift, // Move inward
     y: Math.round(centerY),
   };
   const topRight = {
-    x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2) - angleInset + cornerShift, // Move inward
     y: Math.round(centerY),
   };
   const bottomLeft = {
-    x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2) - cornerShift, // Move inward
     y: Math.round(centerY + scaledHeight),
   };
   const bottomRight = {
-    x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2) + cornerShift, // Move inward
     y: bottomLeft.y,
   };
 
   const angleRad = Math.atan(widthDiff / verticalHeight);
 
-  // Now calculate the curve offset for top and bottom to maintain consistent height
+  // --- Inward adjustment for a sharper curve at both the corners (top and bottom) ---
   const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
   const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
 
@@ -634,21 +646,22 @@ function drawKLD() {
   ctx.beginPath();
   ctx.moveTo(topLeft.x, topLeft.y);
   ctx.quadraticCurveTo(
-    (topLeft.x + topRight.x) / 2,
-    topLeft.y - curveOffsetTop,
+    (topLeft.x + topRight.x) / 2,  // Control point at the center between top-left and top-right
+    topLeft.y - curveOffsetTop,    // Apply curve offset at the top
     topRight.x,
     topRight.y
   );
   ctx.lineTo(bottomRight.x, bottomRight.y);
   ctx.quadraticCurveTo(
-    (bottomRight.x + bottomLeft.x) / 2,
-    bottomRight.y + curveOffsetBottom,
+    (bottomRight.x + bottomLeft.x) / 2,  // Control point at the center between bottom-left and bottom-right
+    bottomRight.y + curveOffsetBottom,   // Apply curve offset at the bottom
     bottomLeft.x,
     bottomLeft.y
   );
   ctx.closePath();
   ctx.clip();
 
+  // --- Image Slicing Adjustments ---
   if (currentImage) {
     const imgWidth = currentImage.width;
     const imgHeight = currentImage.height;
@@ -722,18 +735,19 @@ function drawKLD() {
   }
   ctx.restore();
 
+  // --- Outer Stroke ---
   ctx.beginPath();
   ctx.moveTo(topLeft.x, topLeft.y);
   ctx.quadraticCurveTo(
-    (topLeft.x + topRight.x) / 2,
-    topLeft.y - curveOffsetTop,
+    (topLeft.x + topRight.x) / 2,  // Control point at the center between top-left and top-right
+    topLeft.y - curveOffsetTop,    // Apply curve offset at the top
     topRight.x,
     topRight.y
   );
   ctx.lineTo(bottomRight.x, bottomRight.y);
   ctx.quadraticCurveTo(
-    (bottomRight.x + bottomLeft.x) / 2,
-    bottomRight.y + curveOffsetBottom,
+    (bottomRight.x + bottomLeft.x) / 2,  // Control point at the center between bottom-left and bottom-right
+    bottomRight.y + curveOffsetBottom,   // Apply curve offset at the bottom
     bottomLeft.x,
     bottomLeft.y
   );
@@ -742,6 +756,7 @@ function drawKLD() {
   ctx.strokeStyle = "#222";
   ctx.stroke();
 
+  // --- Dimension Text ---
   let fontSizeScale;
   switch (units.toLowerCase()) {
     case "mm":
@@ -769,12 +784,19 @@ function drawKLD() {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
+  // --- Define offset (a scaled value) ---
+  const offset = 30 * scale;  // Adjust this value for better arrow placement
+
+  // Dimension arrows (adjusted for correct curve representation)
+  const originalTopLeftX = Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2);
+  const originalTopRightX = Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2);
+
   const topDimY = topLeft.y - curveOffsetTop * 0.5 - offset;
-  drawArrow(ctx, topLeft.x, topDimY, topRight.x, topDimY, 8);
-  drawArrow(ctx, topRight.x, topDimY, topLeft.x, topDimY, 8);
+  drawArrow(ctx, originalTopLeftX, topDimY, originalTopRightX, topDimY, 8);
+  drawArrow(ctx, originalTopRightX, topDimY, originalTopLeftX, topDimY, 8);
   ctx.fillText(
     w.toFixed(2) + " " + units,
-    (topLeft.x + topRight.x) / 2,
+    (originalTopLeftX + originalTopRightX) / 2,
     topDimY - 12 * scale * fontSizeScale
   );
 
@@ -787,32 +809,30 @@ function drawKLD() {
     bottomDimY + 16 * scale * fontSizeScale
   );
 
-  const heightDimDist = 40 * scale; // distance offset for dimension line
-
-  // Calculate offset vector perpendicular to the slant line
+  const heightDimDist = 40 * scale; 
   const offsetX = heightDimDist * Math.cos(angleRad);
   const offsetY = heightDimDist * Math.sin(angleRad);
 
-  // Draw arrows of the dimension line parallel to the slant
   drawArrow(ctx, topRight.x + offsetX, topRight.y - offsetY, bottomRight.x + offsetX, bottomRight.y - offsetY, 8);
   drawArrow(ctx, bottomRight.x + offsetX, bottomRight.y - offsetY, topRight.x + offsetX, topRight.y - offsetY, 8);
 
-  // Calculate midpoint of dimension line
   const textX = (topRight.x + bottomRight.x) / 2 + offsetX;
   const textY = (topRight.y + bottomRight.y) / 2 - offsetY;
 
   ctx.save();
   ctx.translate(textX, textY);
-  // Rotate text so it is slanted parallel to the dimension line
   ctx.rotate(-angleRad);
-  // Draw the text (number + units)
   ctx.fillText(h.toFixed(2) + " " + units, 0, 6 * scale * fontSizeScale);
   ctx.restore();
 
+  // Function for quadratic interpolation
   function quadraticAt(p0, p1, p2, t) {
     return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
   }
 }
+
+
+
  else if (diagramType === "squareWithRadius" || diagramType === "squareWithRadius750" || orientation === 'Top') {
     w = Number(document.getElementById("sqWidth").value);
     h = Number(document.getElementById("sqHeight").value);
@@ -1452,11 +1472,11 @@ function drawKLDForExport() {
   const round = (num) => Math.round(num * 100) / 100;
 
   // Helper function to calculate the point on a quadratic curve
-function quadraticAt(p0, p1, p2, t) {
-  return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
-}
+// function quadraticAt(p0, p1, p2, t) {
+//   return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+// }
 
-  if (
+if (
   diagramType === "curveRectangle500" ||
   diagramType === "curveRectangle250" ||
   diagramType === "curveRectangle750" ||
@@ -1464,84 +1484,91 @@ function quadraticAt(p0, p1, p2, t) {
   diagramType === "curveRectangle500g_square" ||
   diagramType === "curveRectangle500ml_square"
 ) {
-  const bendFactor = 1; // Adjust this factor to bend the curve slightly (e.g., between 0 and 2)
-
-  // Get user input values
   w = Number(document.getElementById("topWidth").value);
   h = Number(document.getElementById("height").value);
   bottom = Number(document.getElementById("bottomWidth").value);
 
-  // Convert to pixel units
   const wPx = toPx(w);
   const hPx = toPx(h);
   const bottomPx = toPx(bottom);
 
-  // Calculate the difference in widths between top and bottom
   const topHalf = wPx / 2;
   const bottomHalf = bottomPx / 2;
   const widthDiff = bottomHalf - topHalf;
 
-  // We should use the original height for the vertical calculation
-  const verticalHeight = hPx;  // Use original height for scaling instead of Pythagoras
+  // Use the original height directly
+  const verticalHeight = hPx;
 
-  // Scaling factors for both axes
+  const svgWidth = canvas.clientWidth;
+  const svgHeight = canvas.clientHeight;
+
   const scaleXFit = (svgWidth - 2 * margin) / Math.max(wPx, bottomPx);
   const scaleYFit = (svgHeight - 2 * margin) / verticalHeight;
-  const scale = Math.min(scaleXFit, scaleYFit, 1);
+  scale = Math.min(scaleXFit, scaleYFit, 1);
 
-  // Scaled values
   const scaledWidth = wPx * scale;
-  const scaledHeight = verticalHeight * scale;  // Maintain original height scaling
+  const scaledHeight = verticalHeight * scale;
   const scaledBottomWidth = bottomPx * scale;
   const scaledMaxWidth = Math.max(wPx, bottomPx) * scale;
 
   const centerX = (svgWidth - scaledMaxWidth) / 2;
-  const centerY = (svgHeight - scaledHeight) / 2 + 100; // Position with some margin
+  const centerY = (svgHeight - scaledHeight) / 2 + 60;
 
-  // Points for the curve
+  let angleInset = 0 * scale; // Keep the original angle for the slant
+  // --- END --- 
+
+  let cornerShift = 0 * scale;
+
+  if(diagramType === "curveRectangle250"){
+  angleInset = -30 * scale; // Keep the original angle for the slant
+  // --- END --- 
+  cornerShift = -50 * scale; // This will shift both top-left, top-right, bottom-left, and bottom-right inward
+  }
+
+  // Shifting the corners inward (top-left, top-right, bottom-left, bottom-right)
   const topLeft = {
-    x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2) + angleInset - cornerShift, // Move inward
     y: Math.round(centerY),
   };
   const topRight = {
-    x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2) - angleInset + cornerShift, // Move inward
     y: Math.round(centerY),
   };
   const bottomLeft = {
-    x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2) - cornerShift, // Move inward
     y: Math.round(centerY + scaledHeight),
   };
   const bottomRight = {
-    x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2) + cornerShift, // Move inward
     y: bottomLeft.y,
   };
 
-  // Calculate the angle of the curve
-  const angleRad = Math.atan(widthDiff / verticalHeight);  // Use height for angle calculation
+  const angleRad = Math.atan(widthDiff / verticalHeight);
 
-  // Apply bendFactor to the curve offsets
-  const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale * bendFactor;
-  const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale * bendFactor;
+  // --- Inward adjustment for a sharper curve at both the corners (top and bottom) ---
+  const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
+  const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
 
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(topLeft.x, topLeft.y);
   ctx.quadraticCurveTo(
-    (topLeft.x + topRight.x) / 2,
-    topLeft.y - curveOffsetTop,
+    (topLeft.x + topRight.x) / 2,  // Control point at the center between top-left and top-right
+    topLeft.y - curveOffsetTop,    // Apply curve offset at the top
     topRight.x,
     topRight.y
   );
   ctx.lineTo(bottomRight.x, bottomRight.y);
   ctx.quadraticCurveTo(
-    (bottomRight.x + bottomLeft.x) / 2,
-    bottomRight.y + curveOffsetBottom,
+    (bottomRight.x + bottomLeft.x) / 2,  // Control point at the center between bottom-left and bottom-right
+    bottomRight.y + curveOffsetBottom,   // Apply curve offset at the bottom
     bottomLeft.x,
     bottomLeft.y
   );
   ctx.closePath();
   ctx.clip();
 
+  // --- Image Slicing Adjustments ---
   if (currentImage) {
     const imgWidth = currentImage.width;
     const imgHeight = currentImage.height;
@@ -1555,14 +1582,34 @@ function quadraticAt(p0, p1, p2, t) {
       const t2 = (i + 1) / sliceCount;
 
       const topX1 = topLeft.x + (topRight.x - topLeft.x) * t1;
-      const topY1 = quadraticAt(topLeft.y, topLeft.y - curveOffsetTop, topRight.y, t1);
+      const topY1 = quadraticAt(
+        topLeft.y,
+        topLeft.y - curveOffsetTop,
+        topRight.y,
+        t1
+      );
       const topX2 = topLeft.x + (topRight.x - topLeft.x) * t2;
-      const topY2 = quadraticAt(topLeft.y, topLeft.y - curveOffsetTop, topRight.y, t2);
+      const topY2 = quadraticAt(
+        topLeft.y,
+        topLeft.y - curveOffsetTop,
+        topRight.y,
+        t2
+      );
 
       const bottomX1 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t1;
-      const bottomY1 = quadraticAt(bottomLeft.y, bottomRight.y + curveOffsetBottom, bottomRight.y, t1);
+      const bottomY1 = quadraticAt(
+        bottomLeft.y,
+        bottomRight.y + curveOffsetBottom,
+        bottomRight.y,
+        t1
+      );
       const bottomX2 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t2;
-      const bottomY2 = quadraticAt(bottomLeft.y, bottomRight.y + curveOffsetBottom, bottomRight.y, t2);
+      const bottomY2 = quadraticAt(
+        bottomLeft.y,
+        bottomRight.y + curveOffsetBottom,
+        bottomRight.y,
+        t2
+      );
 
       const angleTop = Math.atan2(topY2 - topY1, topX2 - topX1);
       const angleBottom = Math.atan2(bottomY2 - bottomY1, bottomX2 - bottomX1);
@@ -1574,6 +1621,7 @@ function quadraticAt(p0, p1, p2, t) {
       ctx.save();
       ctx.translate(topX1, topY1);
       ctx.rotate(angle);
+
       ctx.drawImage(
         currentImage,
         sx,
@@ -1582,7 +1630,7 @@ function quadraticAt(p0, p1, p2, t) {
         imgHeight,
         0,
         0,
-        sliceWidth + 0.5,
+        sliceWidth + 0.6,
         sliceHeight
       );
       ctx.restore();
@@ -1594,18 +1642,19 @@ function quadraticAt(p0, p1, p2, t) {
   }
   ctx.restore();
 
+  // --- Outer Stroke ---
   ctx.beginPath();
   ctx.moveTo(topLeft.x, topLeft.y);
   ctx.quadraticCurveTo(
-    (topLeft.x + topRight.x) / 2,
-    topLeft.y - curveOffsetTop,
+    (topLeft.x + topRight.x) / 2,  // Control point at the center between top-left and top-right
+    topLeft.y - curveOffsetTop,    // Apply curve offset at the top
     topRight.x,
     topRight.y
   );
   ctx.lineTo(bottomRight.x, bottomRight.y);
   ctx.quadraticCurveTo(
-    (bottomRight.x + bottomLeft.x) / 2,
-    bottomRight.y + curveOffsetBottom,
+    (bottomRight.x + bottomLeft.x) / 2,  // Control point at the center between bottom-left and bottom-right
+    bottomRight.y + curveOffsetBottom,   // Apply curve offset at the bottom
     bottomLeft.x,
     bottomLeft.y
   );
@@ -1613,6 +1662,11 @@ function quadraticAt(p0, p1, p2, t) {
   ctx.lineWidth = Math.max(1, 1.2 * scale);
   ctx.strokeStyle = "#222";
   ctx.stroke();
+
+  // Function for quadratic interpolation
+  function quadraticAt(p0, p1, p2, t) {
+    return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+  }
 }
 
   else if (
@@ -2336,7 +2390,7 @@ function exportAsWarpedSVG() {
     return value * unitToPx[units];
   }
 
-  // Get shape dimensions from the form inputs
+  // ✅ Read the dimensions
   let w = Number(document.getElementById("topWidth").value);
   let h = Number(document.getElementById("height").value);
   let bottom = Number(document.getElementById("bottomWidth").value);
@@ -2349,9 +2403,7 @@ function exportAsWarpedSVG() {
   const bottomHalf = bottomPx / 2;
   const widthDiff = bottomHalf - topHalf;
 
-  // Use the original height directly (no need for bendHeightFactor)
   const verticalHeight = hPx;
-
   const svgWidth = canvas.clientWidth;
   const svgHeight = canvas.clientHeight;
   const margin = 60;
@@ -2368,33 +2420,42 @@ function exportAsWarpedSVG() {
   const centerX = (svgWidth - scaledMaxWidth) / 2;
   const centerY = (svgHeight - scaledHeight) / 2 + 60;
 
+  let angleInset = 0 * scale; // Keep the original angle for the slant
+  // --- END --- 
+  let cornerShift = 0 * scale;
+
+  if(diagramType === "curveRectangle250"){
+  angleInset = -30 * scale; // Keep the original angle for the slant
+  // --- END --- 
+  cornerShift = -50 * scale; // This will shift both top-left, top-right, bottom-left, and bottom-right inward
+  }
+
   const topLeft = {
-    x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth - scaledWidth) / 2) + angleInset - cornerShift,
     y: Math.round(centerY),
   };
   const topRight = {
-    x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth + scaledWidth) / 2) - angleInset + cornerShift,
     y: Math.round(centerY),
   };
   const bottomLeft = {
-    x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth - scaledBottomWidth) / 2) - cornerShift,
     y: Math.round(centerY + scaledHeight),
   };
   const bottomRight = {
-    x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2),
+    x: Math.round(centerX + (scaledMaxWidth + scaledBottomWidth) / 2) + cornerShift,
     y: bottomLeft.y,
   };
 
   const angleRad = Math.atan(widthDiff / verticalHeight);
 
-  // Now calculate the curve offset for top and bottom to maintain consistent height
   const curveOffsetTop = -Math.tan(angleRad) * toPx(w / 2) * scale;
   const curveOffsetBottom = Math.tan(angleRad) * toPx(bottom / 2) * scale;
 
+  // --- Generate warped edge points ---
   let topPoints = [];
   let bottomPoints = [];
 
-  // Generate points for the warped path
   for (let i = 0; i <= 100; i++) {
     const t = i / 100;
 
@@ -2407,17 +2468,17 @@ function exportAsWarpedSVG() {
     bottomPoints.push({ x: bottomX, y: bottomY });
   }
 
-  // Path data for the SVG shape
-  let pathData = `M ${topPoints[0].x},${topPoints[0].y}`;
-  topPoints.forEach(point => {
-    pathData += ` L ${round(point.x)},${round(point.y)}`;
+  // --- Path for SVG shape ---
+  let pathData = `M ${round(topPoints[0].x)},${round(topPoints[0].y)}`;
+  topPoints.forEach((p) => {
+    pathData += ` L ${round(p.x)},${round(p.y)}`;
   });
-  bottomPoints.reverse().forEach(point => {
-    pathData += ` L ${round(point.x)},${round(point.y)}`;
+  bottomPoints.reverse().forEach((p) => {
+    pathData += ` L ${round(p.x)},${round(p.y)}`;
   });
   pathData += " Z";
 
-  // Create the SVG content with the image clipped in the warped path
+  // --- Render warped image slices onto canvas ---
   const compositeCanvas = document.createElement("canvas");
   compositeCanvas.width = svgWidth * 2;
   compositeCanvas.height = svgHeight * 2;
@@ -2425,12 +2486,11 @@ function exportAsWarpedSVG() {
   compositeCtx.clearRect(0, 0, compositeCanvas.width, compositeCanvas.height);
   compositeCtx.scale(2, 2);
 
-  // Draw the image slices onto the composite canvas
   const imgWidth = currentImage.width;
   const imgHeight = currentImage.height;
   const sliceCount = 2000;
   const sliceW = imgWidth / sliceCount;
-  
+
   for (let i = 0; i < sliceCount; i++) {
     const sx = i * sliceW;
     const sw = sliceW;
@@ -2450,34 +2510,44 @@ function exportAsWarpedSVG() {
     const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
     const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
 
-    const angle = (Math.atan2(topY2 - topY1, topX2 - topX1) + Math.atan2(bottomY2 - bottomY1, bottomX2 - bottomX1)) / 2;
-
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = sliceW;
-    tempCanvas.height = imgHeight;
-    const tempCtx = tempCanvas.getContext("2d");
-    tempCtx.drawImage(currentImage, sx, 0, sliceW, imgHeight, 0, 0, sliceW, imgHeight);
+    const angleTop = Math.atan2(topY2 - topY1, topX2 - topX1);
+    const angleBottom = Math.atan2(bottomY2 - bottomY1, bottomX2 - bottomX1);
+    const angle = (angleTop + angleBottom) / 2;
 
     compositeCtx.save();
     compositeCtx.translate(topX1, topY1);
     compositeCtx.rotate(angle);
-    compositeCtx.drawImage(tempCanvas, 0, 0, sliceWidth + 0.6, sliceHeight);
+    compositeCtx.drawImage(
+      currentImage,
+      sx,
+      0,
+      sw,
+      imgHeight,
+      0,
+      0,
+      sliceWidth + 0.6,
+      sliceHeight
+    );
     compositeCtx.restore();
   }
 
-  // Generate the SVG as a string
+  // --- Generate final SVG ---
   const compositeImageData = compositeCanvas.toDataURL("image/png", 1.0);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${svgWidth}" height="${svgHeight}">
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+       width="${svgWidth}" height="${svgHeight}">
     <defs>
       <clipPath id="shapeClip">
-        <path d="${pathData}"/>
+        <path d="${pathData}" />
       </clipPath>
     </defs>
-    <image xlink:href="${compositeImageData}" x="0" y="0" width="${svgWidth}" height="${svgHeight}" clip-path="url(#shapeClip)" preserveAspectRatio="none"/>
+    <image xlink:href="${compositeImageData}" x="0" y="0" 
+           width="${svgWidth}" height="${svgHeight}" 
+           clip-path="url(#shapeClip)" preserveAspectRatio="none"/>
     <path d="${pathData}" fill="none" stroke="black" stroke-width="1.2"/>
   </svg>`;
 
-  // Create a download link for the SVG
+  // --- Download SVG ---
   const blob = new Blob([svg], { type: "image/svg+xml" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -2486,18 +2556,18 @@ function exportAsWarpedSVG() {
   link.download = `${shapeType.charAt(0).toUpperCase() + shapeType.slice(1).toLowerCase()}_${modelLabel}.svg`;
   link.click();
 
-  console.log("Generated SVG with warped outline");
+  console.log("✅ Exported warped SVG successfully.");
 
-  // Helper function to calculate quadratic interpolation
+  // --- Helper functions ---
   function quadraticAt(p0, p1, p2, t) {
     return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
   }
 
-  // Helper function to round values to a fixed precision
   function round(val) {
     return Number(val.toFixed(3));
   }
 }
+
 
 
 
@@ -2543,7 +2613,7 @@ function exportSweetBoxAsSVG() {
   const topPoints = [];
   for (let i = 0; i < numPoints; i++) {
     const x = centerX - scaledWidth / 2 + (scaledWidth / (numPoints - 1)) * i;
-    const bendOffset = scaledBend * bendFactor * Math.sin((Math.PI * i) / (numPoints - 1));
+    const bendOffset = scaledBend * bendFactor * (1 - Math.sin((Math.PI * i) / (numPoints - 1)));
     const y = centerY - scaledHeight / 2 - bendOffset;
     topPoints.push({ x, y });
   }

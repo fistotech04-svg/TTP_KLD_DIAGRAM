@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Curved Label Generator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body {
+    background: #fafbfc;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+  #controls-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    justify-content: center;
+  }
+  .canvas-wrap {
+    min-height: 75vh;
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+  }
+  #bendCanvas {
+    border: 1px solid #ddd;
+    background: #fff;
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    max-height: 90vh;
+  }
+</style>
+</head>
+<body>
+  <div id="controls-row">
+    <input type="number" id="topWidth" placeholder="Top Width (mm)" />
+    <input type="number" id="bottomWidth" placeholder="Bottom Width (mm)" />
+    <input type="number" id="height" placeholder="Height (mm)" />
+    <input type="file" id="imgUpload" accept="image/*" />
+  </div>
+  <div class="canvas-wrap">
+    <canvas id="bendCanvas"></canvas>
+  </div>
+<script>
+const topWidthInput = document.getElementById('topWidth');
+const bottomWidthInput = document.getElementById('bottomWidth');
+const heightInput = document.getElementById('height');
+const imgUploadInput = document.getElementById('imgUpload');
+const canvas = document.getElementById('bendCanvas');
+const ctx = canvas.getContext('2d');
+
+let currentImage = new Image();
+
+function mmToPx(mm) {
+  return mm * 3.77953;
+}
+
+function quadraticAt(p0, p1, p2, t) {
+  return (1 - t) * (1 - t) * p0 + 2 * (1 - t) * t * p1 + t * t * p2;
+}
+
+function renderBentImage() {
+  if (!currentImage.src) return;
+
+  const w_mm = Number(topWidthInput.value) || 100;
+  const bottom_mm = Number(bottomWidthInput.value) || 100;
+  const h_mm = Number(heightInput.value) || 50;
+
+  const w = mmToPx(w_mm);
+  const bottom = mmToPx(bottom_mm);
+  const h = mmToPx(h_mm);
+
+  // Instead of arbitrary +50, add extra margin relative to size
+  const extraMargin = Math.max(40, Math.ceil(h * 0.1));
+
+  canvas.width = Math.max(w, bottom) + extraMargin;
+  canvas.height = h + extraMargin;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const margin = extraMargin / 2;
+  const topLeft = { x: margin + (canvas.width - margin*2 - w)/2, y: margin };
+  const topRight = { x: topLeft.x + w, y: margin };
+  const bottomLeft = { x: margin + (canvas.width - margin*2 - bottom)/2, y: margin + h };
+  const bottomRight = { x: bottomLeft.x + bottom, y: margin + h };
+
+  const widthDiff = (bottom / 2) - (w / 2);
+  const verticalHeight = h;
+  const angleRad = Math.atan(widthDiff / verticalHeight);
+
+  const curveOffsetTop = -Math.tan(angleRad) * (w / 2);
+  const curveOffsetBottom = Math.tan(angleRad) * (bottom / 2);
+
+  const imgWidth = currentImage.width;
+  const imgHeight = currentImage.height;
+
+  const sliceCount = 1000;
+  const sliceW = imgWidth / sliceCount;
+
+  for (let i = 0; i < sliceCount; i++) {
+    const sx = i * sliceW;
+    const sw = sliceW;
+    const t1 = i / sliceCount;
+    const t2 = (i + 1) / sliceCount;
+
+    const topX1 = topLeft.x + (topRight.x - topLeft.x) * t1;
+    const topY1 = quadraticAt(topLeft.y, topLeft.y - curveOffsetTop, topRight.y, t1);
+    const topX2 = topLeft.x + (topRight.x - topLeft.x) * t2;
+    const topY2 = quadraticAt(topLeft.y, topLeft.y - curveOffsetTop, topRight.y, t2);
+
+    const bottomX1 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t1;
+    const bottomY1 = quadraticAt(bottomLeft.y, bottomRight.y + curveOffsetBottom, bottomRight.y, t1);
+    const bottomX2 = bottomLeft.x + (bottomRight.x - bottomLeft.x) * t2;
+    const bottomY2 = quadraticAt(bottomLeft.y, bottomRight.y + curveOffsetBottom, bottomRight.y, t2);
+
+    const angleTop = Math.atan2(topY2 - topY1, topX2 - topX1);
+    const angleBottom = Math.atan2(bottomY2 - bottomY1, bottomX2 - bottomX1);
+    const angle = (angleTop + angleBottom) / 2;
+
+    const sliceWidth = Math.hypot(topX2 - topX1, topY2 - topY1);
+    const sliceHeight = Math.hypot(bottomX1 - topX1, bottomY1 - topY1);
+
+    ctx.save();
+    ctx.translate(topX1, topY1);
+    ctx.rotate(angle);
+
+    ctx.drawImage(
+      currentImage,
+      sx, 0, sw, imgHeight,
+      0, 0, sliceWidth + 0.5, sliceHeight
+    );
+    ctx.restore();
+  }
+  ctx.imageSmoothingEnabled = true;
+}
+
+imgUploadInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      currentImage = new Image();
+      currentImage.onload = renderBentImage;
+      currentImage.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
+[topWidthInput, bottomWidthInput, heightInput].forEach(input =>
+  input.addEventListener('input', renderBentImage)
+);
+
+</script>
+</body>
+</html>
